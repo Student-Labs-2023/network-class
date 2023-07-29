@@ -1,14 +1,16 @@
-from flask import Flask
-from database.database import session
-from database.models import User
+from flask import Flask, Blueprint
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 
+app.config.from_object('config')
+db = SQLAlchemy(app)
 
-@app.route('/')
-def hello_world():
-    return 'Hello World!'
+# from validation.validator import validation
+from channels.routes import channels
 
+app.register_blueprint(channels)
+# app.register_blueprint(validation)
 
 if __name__ == '__main__':
     app.run()
