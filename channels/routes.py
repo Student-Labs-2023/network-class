@@ -1,7 +1,7 @@
 from flask import request, jsonify, abort, Blueprint
 from sqlalchemy import or_
 
-from channels.models import Channels
+from channels.models import Channels, UserChannels
 
 from database.database import db
 
@@ -36,15 +36,15 @@ def get_channels():
 
     formatted_results = []
     for channel in filtered_channels:
+        owner_id_result = UserChannels.query.filter_by(channel_id=channel.id, role_id=1).first()
+        owner_id = owner_id_result.user_id if owner_id_result is not None else str(owner_id_result)
         formatted_channel = {
             "id": channel.id,
             "name": channel.name,
             "imageUrl": channel.photo_url,
             "url": channel.url,
-            "owner": {
-                "fullName": "test",
-                "photoUrl": "test",
-            }
+            "public": channel.public,
+            "owner_id": owner_id
         }
         formatted_results.append(formatted_channel)
 
@@ -64,8 +64,8 @@ def create_channel():
     photo_url = data.get("photo_url")
 
     # Проверка наличия имени канала
-    if not name:
-        abort(400, description="Не указано имя канала")
+    if not name or not owner_id:
+        abort(403, description="Неверный фильтр")
 
     # Проверка уникальности имени канала в базе данных
     if Channels.query.filter_by(name=name).first():
@@ -73,7 +73,10 @@ def create_channel():
 
     # Создание нового канала и сохранение в базе данных
     channel = Channels(name=name, url=url, public=public, photo_url=photo_url)
+
     channel.create()
+    user_channel = UserChannels(user_id=owner_id, channel_id=channel.id, role_id=1)
+    user_channel.create()
 
     # Возвращение ответа
     return jsonify({"message": "Канал успешно создан"}), 200
@@ -96,14 +99,41 @@ def update_channel(channel_id):
     data = request.json
     name = data.get("name")
     photo_url = data.get("photo_url")
+    url = data.get("url")
+    public = data.get("public")
 
     # Обновление информации о канале
     if name:
         channel.name = name
     if photo_url:
         channel.photo_url = photo_url
+    if public is not None:
+        channel.public = bool(int(public))
 
     db.session.commit()
 
     # Возвращение ответа
     return jsonify({"message": "Информация о канале обновлена"}), 200
+
+
+@channels.route("/channels", methods=['DELETE'])
+def delete_channel():
+    if not is_user_authorized():
+        abort(401, description="Пользователь не авторизован")
+
+    data = request.json
+    channel_id = data.get("channel_id")
+
+    # Проверка наличия имени канала
+    if not channel_id:
+        abort(403, description="Неверный фильтр")
+
+    # Проверка уникальности имени канала в базе данных
+
+    deleted_count_channels = Channels.query.filter_by(id=channel_id).delete()
+    UserChannels.query.filter_by(channel_id=channel_id).delete()
+
+    db.session.commit()
+
+    # Возвращение ответа
+    return jsonify({"message": f"Удалено {deleted_count_channels} каналов"}), 200
