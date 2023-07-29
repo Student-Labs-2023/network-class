@@ -15,6 +15,8 @@ from channels.routes import channels
 
 app.register_blueprint(channels)
 # app.register_blueprint(validation)
+with app.app_context():
+    print(db.get_engine().engine)
 
 if __name__ == '__main__':
     app.run()

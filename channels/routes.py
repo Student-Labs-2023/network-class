@@ -3,6 +3,8 @@ from sqlalchemy import or_
 
 from channels.models import Channels
 
+from database.database import db
+
 channels = Blueprint('channels', __name__)
 
 
@@ -71,8 +73,7 @@ def create_channel():
 
     # Создание нового канала и сохранение в базе данных
     channel = Channels(name=name, url=url, public=public, photo_url=photo_url)
-    Channels.add(channel)
-    Channels.commit()
+    channel.create()
 
     # Возвращение ответа
     return jsonify({"message": "Канал успешно создан"}), 200
@@ -102,7 +103,7 @@ def update_channel(channel_id):
     if photo_url:
         channel.photo_url = photo_url
 
-    Channels.commit()
+    db.session.commit()
 
     # Возвращение ответа
     return jsonify({"message": "Информация о канале обновлена"}), 200
