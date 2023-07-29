@@ -1,11 +1,8 @@
-from sqlalchemy import Column, VARCHAR, BIGINT, BOOLEAN
-from sqlalchemy.ext.declarative import declarative_base
+from flask_sqlalchemy import SQLAlchemy
 
-Base = declarative_base()
+db = SQLAlchemy()
 
 
-class Roles(Base):
-    __tablename__ = "Roles"
-
-    id = Column(BIGINT(), primary_key=True)
-    name = Column(VARCHAR())
+class Roles(db.Model):
+    id = db.Column(db.BIGINT(), primary_key=True)
+    name = db.Column(db.VARCHAR())

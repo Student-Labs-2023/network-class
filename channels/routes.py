@@ -61,6 +61,7 @@ def create_channel():
     name = data.get("name")
     url = data.get("url")
     public = True if data.get("public") is None else bool(int(data.get("public")))
+    owner_id = data.get("owner_id")
     photo_url = data.get("photo_url")
 
     # Проверка наличия имени канала

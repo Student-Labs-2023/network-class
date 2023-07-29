@@ -1,20 +1,15 @@
-from sqlalchemy import Column, VARCHAR, BIGINT, BOOLEAN
-from sqlalchemy.ext.declarative import declarative_base
+from flask_sqlalchemy import SQLAlchemy
 
-Base = declarative_base()
-
-
-class UserChannels(Base):
-    __tablename__ = "UserChannels"
-
-    user_id = Column(BIGINT(), primary_key=True)
-    channel_id = Column(BIGINT(), primary_key=True)
-    role_id = Column(BIGINT())
+db = SQLAlchemy()
 
 
-class User(Base):
-    __tablename__ = 'Users'
+class UserChannels(db.Model):
+    user_id = db.Column(db.BIGINT(), primary_key=True)
+    channel_id = db.Column(db.BIGINT(), primary_key=True)
+    role_id = db.Column(db.BIGINT())
 
-    id = Column(BIGINT, primary_key=True)
-    full_name = Column(VARCHAR())
-    photo_url = Column(VARCHAR())
+
+class Users(db.Model):
+    id = db.Column(db.BIGINT(), primary_key=True)
+    full_name = db.Column(db.VARCHAR())
+    photo_url = db.Column(db.VARCHAR())
