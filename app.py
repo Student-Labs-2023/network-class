@@ -1,11 +1,13 @@
-from flask import Flask, Blueprint
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask
 from flask_migrate import Migrate
+
+from database.database import db
 
 app = Flask(__name__)
 
-app.config.from_object('config')
-db = SQLAlchemy(app)
+app.config.from_pyfile('config.py')
+db.init_app(app=app)
+
 migrate = Migrate(app, db)
 
 # from validation.validator import validation

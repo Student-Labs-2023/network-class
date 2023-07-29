@@ -1,7 +1,4 @@
-from flask import Blueprint
-from flask_sqlalchemy import SQLAlchemy
-
-db = SQLAlchemy()
+from database.database import db
 
 
 class Channels(db.Model):
