@@ -4,12 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8dc13134-32e7-424e-8ce7-2fe13f7b3723" name="Changes" comment="Error fix">
+    <list default="true" id="8dc13134-32e7-424e-8ce7-2fe13f7b3723" name="Changes" comment="Add new endpoints">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/channels/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/channels/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/channels/routes.py" beforeDir="false" afterPath="$PROJECT_DIR$/channels/routes.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/user/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/user/models.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -133,7 +130,8 @@
       <workItem from="1690023618673" duration="35000" />
       <workItem from="1690564884955" duration="1860000" />
       <workItem from="1690566928725" duration="1149000" />
-      <workItem from="1690634180757" duration="15153000" />
+      <workItem from="1690634180757" duration="25242000" />
+      <workItem from="1690746821883" duration="7000" />
     </task>
     <task id="LOCAL-00001" summary="Edit and add new endpoint">
       <created>1690644145571</created>
@@ -170,11 +168,29 @@
       <option name="project" value="LOCAL" />
       <updated>1690650653853</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="Add new endpoints">
+      <created>1690653441201</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1690653441201</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Edit and add new endpoint" />
@@ -182,11 +198,12 @@
     <MESSAGE value="Bug fix" />
     <MESSAGE value="More fix" />
     <MESSAGE value="Error fix" />
-    <option name="LAST_COMMIT_MESSAGE" value="Error fix" />
+    <MESSAGE value="Add new endpoints" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add new endpoints" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/network_class_backend$Flask__routes_py_.coverage" NAME="Flask (routes.py) Coverage Results" MODIFIED="1690564976440" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/network_class_backend$NETWORK.coverage" NAME="NETWORK Coverage Results" MODIFIED="1690566966396" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
-    <SUITE FILE_PATH="coverage/network_class_backend$Flask__app_py_.coverage" NAME="Flask (app.py) Coverage Results" MODIFIED="1690653307770" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/network_class_backend$Flask__app_py_.coverage" NAME="Flask (app.py) Coverage Results" MODIFIED="1690743921471" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>
