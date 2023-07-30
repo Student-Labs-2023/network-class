@@ -1,20 +1,23 @@
 from functools import wraps
-from flask import Flask, request, jsonify
+from flask import request, jsonify, Blueprint
 
 from auth0_jwt_validator import (
     AccessTokenVerifier,
     MissingClaimError,
-    InvalidClaimError
+    InvalidClaimError,
 )
 
-app = Flask(__name__)
+
+# validation = Blueprint('validation', __name__, url_prefix="/validation")
+
 
 #Разобраться с AUTH0_JWKS_URI
 from config import AUTH0_JWKS_URI, ISSUER, AUDIENCE
 access_token_verifier = AccessTokenVerifier(AUTH0_JWKS_URI, ISSUER, AUDIENCE)
 
+
 #Глобальный обработчик ошибок
-@app.errorhandler(Exception)
+@validation.errorhandler(Exception)
 def handle_error(e):
     return jsonify({'error': str(e)}), 500
 
@@ -46,11 +49,7 @@ def route_get_access_token_payload(f):
     return _route_get_access_token_payload
 
 
-@app.get("/")
+@validation.get("/")
 @route_get_access_token_payload
 def index(access_token_payload: dict):
     return jsonify({"access_token_payload": access_token_payload})
-
-
-if __name__ == '__main__':
-    app.run()
