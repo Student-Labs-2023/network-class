@@ -1,6 +1,7 @@
 from flask import request, jsonify, abort, Blueprint
 from sqlalchemy import or_
 
+from user.models import Users
 from channels.models import Channels, UserChannels
 
 from database.database import db
@@ -85,6 +86,14 @@ def create_channel():
 def is_user_authorized():
     return True
 
+@channels.route("/channels/<int:id>", methods=["GET"])
+def get_user_channels():
+    user_id = Users.query.get(id)
+    if not user_id:
+        abort(401, description='Пользователь не авторизован')
+    channels = Channels.query.filter_by(user_id=id).all()
+    channels_list = [{'id': channel.id, 'name': channel.name} for channel in channels]
+    return jsonify(channels_list), 200
 
 @channels.route("/channels/<int:channel_id>", methods=["PUT"])
 def update_channel(channel_id):
