@@ -3,6 +3,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from src.channel.router import router as router_channel
 from src.channel_search.router import router as router_channel_search
+from src.user.router import router as router_user
 
 app = FastAPI()
 
@@ -18,4 +19,5 @@ app.add_middleware(
 
 app.include_router(router_channel)
 app.include_router(router_channel_search)
+app.include_router(router_user)
 
