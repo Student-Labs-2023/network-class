@@ -105,12 +105,12 @@ def is_user_authorized():
 
 @router.get("/{channel_id}")
 async def get_user_channels(channel_id: int, session: AsyncSession = Depends(get_async_session)):
+    if not is_user_authorized():
+        raise HTTPException(status_code=401, detail="Пользователь не авторизован")
+
     query = select(Channels).where(Channels.id == channel_id)
     result = await session.execute(query)
     channel = result.first()
-
-    if not is_user_authorized():
-        raise HTTPException(status_code=401, detail="Пользователь не авторизован")
 
     return channel[0].as_dict()
 

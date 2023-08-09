@@ -38,3 +38,10 @@ class Role(Base):
 
     id = Column(BIGINT(), primary_key=True)
     name = Column(VARCHAR())
+
+class Chat(Base):
+    __tablename__ = "messages"
+
+    user_id = Column(BIGINT(), primary_key=True)
+    channel_id = Column(BIGINT(), primary_key=True)
+    value = Column(VARCHAR())
