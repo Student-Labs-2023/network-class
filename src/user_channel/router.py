@@ -56,7 +56,7 @@ async def get_channel_users(user_id: int, session: AsyncSession = Depends(get_as
         result = await session.execute(query)
         channel = result.first()
 
-        channel_dict = channel.as_dict()
+        channel_dict = channel[0].as_dict()
         channel_dict["owner_email"] = user_info[0].email
         channel_dict["owner_fullname"] = user_info[0].full_name
 
