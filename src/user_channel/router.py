@@ -10,7 +10,8 @@ from src.models import Channels, UserChannels, Role, User
 from src.database import get_async_session
 
 router = APIRouter(
-    prefix="/channels"
+    prefix="/user_channels",
+    tags=["UserChannels"]
 )
 @router.get("/{channel_id}/users/" , response_model=List[UserResponse])
 async def get_channel_users(channel_id: int, session: AsyncSession = Depends(get_async_session)):
@@ -64,6 +65,35 @@ async def get_channel_users(user_id: int, session: AsyncSession = Depends(get_as
 
     return response_list
 
+@router.post("/connect")
+async def append_user_channel(email: str, channel_id: int, session: AsyncSession = Depends(get_async_session)):
+    query = select(User).where(User.email == email)
+    result = await session.execute(query)
+    user_info = result.first()
+
+    if user_info is None:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    query = insert(UserChannels).values(user_id=user_info[0].id, channel_id=channel_id, role_id=2)
+    await session.execute(query)
+    await session.commit()
+
+    return {"message": "Пользователь добавлен"}
+
+@router.delete("/disconnect")
+async def delete_user(user_id: int, channel_id: int, session: AsyncSession = Depends(get_async_session)):
+    query = select(User).where(User.id == user_id)
+    result = await session.execute(query)
+    user_info = result.first()
+
+    if user_info is None:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    query = delete(UserChannels).where(UserChannels.user_id == user_id)
+    await session.execute(query)
+    await session.commit()
+
+    return {"message": "Пользователь удалён"}
 
 
 
