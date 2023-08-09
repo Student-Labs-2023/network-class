@@ -2,43 +2,32 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy import select, insert, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.channel.schemas import ChannelResponse, ChannelPost, ChannelDelete
+from src.user.schemas import UserResponse
 from src.models import Channels, UserChannels, Role, User
 from src.database import get_async_session
 
 router = APIRouter(
-    prefix="/users",
-    tags=["UserChannel"]
+    prefix="/channels"
 )
-@router.get("/{user_id}/channels/" , response_model=list[ChannelResponse])
-async def get_user_channels(user_id: int, session: AsyncSession = Depends(get_async_session)):
+@router.get("/{channel_id}/users/" , response_model=list[UserResponse])
+async def get_channel_users(channel_id: int, session: AsyncSession = Depends(get_async_session)):
 
-    query = select(User).where(User.id == user_id)
-    result = await session.execute(query)
-    user_info = result.first()
-
-    if user_info:
-        raise HTTPException(status_code=400, detail="Такого пользоввателя не существует")
-
-    query = select(UserChannels).where(UserChannels.user_id == user_id)
+    query = select(UserChannels).where(UserChannels.channel_id == channel_id)
     result = await session.execute(query)
     user_channels = result.fetchall()
 
+    if len(user_channels) == 0:
+        raise HTTPException(status_code=404, detail="Пользователи не найдены")
+
     response_list = []
 
-    for channel in user_channels:
-
-        query = select(Channels).where(Channels.id == user_channels[0].channel_id)
+    for user in user_channels:
+        query = select(User).where(User.id == user[0].user_id)
         result = await session.execute(query)
-        channels = result.first()
+        users = result.first()
 
-        channels_dict = channels.as_dict()
+        users_dict = users[0].as_dict()
 
-        channels_dict["owner_fullname"] = user_info[0].full_name
-        channels_dict["owner_email"] = user_info[0].email
-
-        response_list.append(channels_dict)
+        response_list.append(users_dict)
 
     return response_list
-
-
