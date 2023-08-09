@@ -22,10 +22,10 @@ async def create_user(data: UserCreate, session: AsyncSession = Depends(get_asyn
     if channel:
         raise HTTPException(status_code=400, detail="Такой пользователь уже существует")
 
-    query = insert(User).values(**data.dict())
-    await session.execute(query)
+    query = insert(User).values(**data.dict()).returning(User)
+    query_result = await session.execute(query)
     await session.commit()
 
-    return {"message": "Пользователь создан"}
+    return query_result.scalars().unique().first()
 
 
