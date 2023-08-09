@@ -76,7 +76,7 @@ async def append_user_channel(email: str, channel_id: int, session: AsyncSession
 
     query = select(UserChannels).where(and_(UserChannels.user_id == user_info[0].id, UserChannels.channel_id == channel_id))
     result = await session.execute(query)
-    channel_info = await result.first()
+    channel_info = result.first()
 
     if channel_info is not None:
         raise HTTPException(status_code=500, detail="Пользователь уже подключён")
