@@ -1,7 +1,7 @@
 from typing import List
 
 from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy import select, insert, delete
+from sqlalchemy import select, insert, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.user_channel.schemas import UserResponse
@@ -74,6 +74,13 @@ async def append_user_channel(email: str, channel_id: int, session: AsyncSession
     if user_info is None:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
+    query = select(UserChannels).where(and_(UserChannels.user_id == user_info[0].id, UserChannels.channel_id == channel_id))
+    result = await session.execute(query)
+    channel_info = await result.first()
+
+    if channel_info is not None:
+        raise HTTPException(status_code=500, detail="Пользователь уже подключён")
+
     query = insert(UserChannels).values(user_id=user_info[0].id, channel_id=channel_id, role_id=2)
     await session.execute(query)
     await session.commit()
@@ -89,7 +96,7 @@ async def delete_user(user_id: int, channel_id: int, session: AsyncSession = Dep
     if user_info is None:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-    query = delete(UserChannels).where(UserChannels.user_id == user_id)
+    query = delete(UserChannels).where(and_(UserChannels.user_id == user_id, UserChannels.channel_id == channel_id))
     await session.execute(query)
     await session.commit()
 
