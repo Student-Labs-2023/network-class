@@ -44,7 +44,7 @@ async def websocket_endpoint(websocket: WebSocket, channel_id: int, session: Asy
             try:
                 json_data = json.loads(data)
                 user_email = json_data.get("email")
-                user_id = json_data.get("id")
+                user_id = json_data.get("user_id")
                 user_fullname = json_data.get("fullname")
                 user_message = json_data.get("message")
 
