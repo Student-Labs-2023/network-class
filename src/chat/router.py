@@ -60,6 +60,5 @@ async def websocket_endpoint(websocket: WebSocket, channel_id: int, session: Asy
                     await manager.broadcast(channel_id, response_data)
             except json.JSONDecodeError:
                 print("Произошла ошибка при кодировании JSON for chat")
-            await manager.broadcast(channel_id, data)
     except WebSocketDisconnect:
-        manager.disconnect(websocket, channel_id)
+        await manager.disconnect(websocket, channel_id)

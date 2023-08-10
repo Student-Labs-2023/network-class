@@ -24,4 +24,3 @@ app.include_router(router_channel_search)
 app.include_router(router_user)
 app.include_router(router_user_channel)
 app.include_router(router_chat)
-
