@@ -35,30 +35,32 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-@router.websocket("/ws/{channel_id}")
-async def websocket_endpoint(websocket: WebSocket, channel_id: int, session: AsyncSession = Depends(get_async_session)):
+@router.get("/")
+async def test():
+    pass
+
+
+@router.websocket("/ws/{channel_id}/")
+async def websocket_endpoint_chat(websocket: WebSocket, channel_id: int, session: AsyncSession = Depends(get_async_session)):
     await manager.connect(websocket, channel_id)
+    print(manager.active_connections)
     try:
         while True:
             data = await websocket.receive_text()
-            try:
-                json_data = json.loads(data)
-                user_email = json_data.get("email")
-                user_id = json_data.get("user_id")
-                user_fullname = json_data.get("fullname")
-                user_message = json_data.get("message")
+            json_data = json.loads(data)
+            user_email = json_data.get("email")
+            user_id = json_data.get("user_id")
+            user_fullname = json_data.get("fullname")
+            user_message = json_data.get("message")
 
-                query_chat = insert(Chat).values(user_id=int(user_id), channel_id=channel_id, value=user_message)
-                await session.execute(query_chat)
-                await session.commit()
+            query_chat = insert(Chat).values(user_id=int(user_id), channel_id=channel_id, value=user_message)
+            await session.execute(query_chat)
+            await session.commit()
 
-                response_data = {
-                    "user_fullname": user_fullname,
-                    "message": user_message,
-                }
-                if user_message is not None and user_fullname is not None:
-                    await manager.broadcast(channel_id, response_data)
-            except json.JSONDecodeError:
-                print("Произошла ошибка при кодировании JSON for chat")
+            response_data = {
+                "user_fullname": user_fullname,
+                "message": user_message,
+            }
+            await manager.broadcast(int(channel_id), response_data)
     except WebSocketDisconnect:
-        await manager.disconnect(websocket, channel_id)
+        await manager.disconnect(websocket, int(channel_id))
