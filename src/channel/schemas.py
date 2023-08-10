@@ -38,6 +38,7 @@ class ChannelPost(BaseModel):
 
 class ChannelDelete(BaseModel):
     channel_id: str
+    user_id: int
 
 
 class UserChannel(BaseModel):

@@ -48,6 +48,7 @@ class Role(Base):
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
+
 class Chat(Base):
     __tablename__ = "messages"
 

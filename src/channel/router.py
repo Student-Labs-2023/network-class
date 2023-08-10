@@ -1,7 +1,7 @@
 from typing import List
 
 from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy import select, insert, delete
+from sqlalchemy import select, insert, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.channel.schemas import ChannelResponse, ChannelPost, ChannelDelete
@@ -89,12 +89,22 @@ async def delete_channel(data: ChannelDelete, session: AsyncSession = Depends(ge
     if not is_user_authorized():
         raise HTTPException(status_code=401, detail="Пользователь не авторизован")
 
-    if not data.id:
+    if not data.channel_id or not data.user_id:
         raise HTTPException(status_code=403, detail="Неверный фильтр")
 
-    query = delete(Channels).where(Channels.id == data.id)
-    await session.execute(query)
-    await session.commit()
+    query = select(UserChannels).where(and_(UserChannels.channel_id == data.channel_id, UserChannels.role_id == 1))
+    result = await session.execute(query)
+    channel_permission_user = result.first()
+
+    if channel_permission_user is None:
+        raise HTTPException(status_code=404, detail="Данного класса не существует")
+
+    if channel_permission_user[0].user_id == data.user_id:
+        query = delete(Channels).where(Channels.id == data.id)
+        await session.execute(query)
+        await session.commit()
+    else:
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
 
     return {"message": f"Канал успешно удалён"}
 

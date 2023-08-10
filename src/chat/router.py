@@ -1,7 +1,8 @@
-from typing import List
+import json
+from typing import List, Dict
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_async_session
@@ -19,18 +20,15 @@ class ConnectionManager:
 
     async def connect(self, websocket: WebSocket, channel_id: int):
         await websocket.accept()
-        if room_id not in self.active_connections:
+        if channel_id not in self.active_connections:
             self.active_connections[channel_id] = []
         self.active_connections[channel_id].append(websocket)
 
     async def disconnect(self, websocket: WebSocket, channel_id: int):
-        self.connections[channel_id].remove(websocket)
+        self.active_connections[channel_id].remove(websocket)
 
-    async def send_personal_message(self, message: str, websocket: WebSocket):
-        await websocket.send_text(message)
-
-    async def broadcast(self, room_id: str, data: dict):
-        for connection in self.connections[room_id]:
+    async def broadcast(self, room_id: int, data: dict):
+        for connection in self.active_connections[room_id]:
             await connection.send_json(data)
 
 
