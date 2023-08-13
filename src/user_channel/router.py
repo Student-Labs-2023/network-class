@@ -13,9 +13,10 @@ router = APIRouter(
     prefix="/user_channels",
     tags=["UserChannels"]
 )
-@router.get("/{channel_id}/users/" , response_model=List[UserResponse])
-async def get_channel_users(channel_id: int, session: AsyncSession = Depends(get_async_session)):
 
+
+@router.get("/{channel_id}/users/", response_model=List[UserResponse])
+async def get_channel_users(channel_id: int, session: AsyncSession = Depends(get_async_session)):
     query = select(UserChannels).where(UserChannels.channel_id == channel_id)
     result = await session.execute(query)
     user_channels = result.fetchall()
@@ -36,7 +37,8 @@ async def get_channel_users(channel_id: int, session: AsyncSession = Depends(get
 
     return response_list
 
-@router.get("/my/{user_id}/" , response_model=List[ChannelResponse])
+
+@router.get("/my/{user_id}/", response_model=List[ChannelResponse])
 async def get_channel_users(user_id: int, session: AsyncSession = Depends(get_async_session)):
     query = select(User).where(User.id == user_id)
     result = await session.execute(query)
@@ -52,7 +54,6 @@ async def get_channel_users(user_id: int, session: AsyncSession = Depends(get_as
     response_list = []
 
     for user_channel in user_channels:
-
         query = select(Channels).where(Channels.id == user_channel[0].channel_id)
         result = await session.execute(query)
         channel = result.first()
@@ -65,6 +66,7 @@ async def get_channel_users(user_id: int, session: AsyncSession = Depends(get_as
 
     return response_list
 
+
 @router.post("/connect")
 async def append_user_channel(email: str, channel_id: int, session: AsyncSession = Depends(get_async_session)):
     query = select(User).where(User.email == email)
@@ -74,7 +76,8 @@ async def append_user_channel(email: str, channel_id: int, session: AsyncSession
     if user_info is None:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-    query = select(UserChannels).where(and_(UserChannels.user_id == user_info[0].id, UserChannels.channel_id == channel_id))
+    query = select(UserChannels).where(
+        and_(UserChannels.user_id == user_info[0].id, UserChannels.channel_id == channel_id))
     result = await session.execute(query)
     channel_info = result.first()
 
@@ -86,6 +89,7 @@ async def append_user_channel(email: str, channel_id: int, session: AsyncSession
     await session.commit()
 
     return {"message": "Пользователь добавлен"}
+
 
 @router.delete("/disconnect")
 async def delete_user(user_id: int, channel_id: int, session: AsyncSession = Depends(get_async_session)):
@@ -101,8 +105,3 @@ async def delete_user(user_id: int, channel_id: int, session: AsyncSession = Dep
     await session.commit()
 
     return {"message": "Пользователь удалён"}
-
-
-
-
-

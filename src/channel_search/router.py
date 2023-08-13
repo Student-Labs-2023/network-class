@@ -1,7 +1,7 @@
 from typing import List
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_async_session
@@ -47,6 +47,20 @@ async def websocket_endpoint_search(websocket: WebSocket, session: AsyncSession 
                 .filter(Role.name == "owner")
             result = await session.execute(query)
             channels = result.fetchall()
-            await websocket.send_json(data=[channel[0].as_dict() for channel in channels])
+            response_list = []
+            for channel in channels:
+                query = select(UserChannels).where(
+                    and_(UserChannels.channel_id == channel[0].id, UserChannels.role_id == 1))
+                result = await session.execute(query)
+                user_id = result.first()
+
+                query = select(User).where(User.id == user_id[0].user_id)
+                result = await session.execute(query)
+                user_info = result.first()
+                channel_dict = channel[0].as_dict()
+                channel_dict["owner_fullname"] = user_info[0].full_name
+                channel_dict["owner_email"] = user_info[0].email
+                response_list.append(channel_dict)
+            await websocket.send_json(data=response_list)
     except WebSocketDisconnect:
         manager.disconnect(websocket)

@@ -14,7 +14,6 @@ router = APIRouter(
 
 @router.post("/")
 async def create_user(data: UserCreate, session: AsyncSession = Depends(get_async_session)):
-
     query = select(User).where(User.email == data.email)
     result = await session.execute(query)
     channel = result.first()
@@ -28,23 +27,23 @@ async def create_user(data: UserCreate, session: AsyncSession = Depends(get_asyn
 
     return query_result.scalars().unique().first()
 
+
 @router.put("/{user_id}")
 async def update_user(user_id: int, data: dict, session: AsyncSession = Depends(get_async_session)):
-
     query = select(User).where(User.id == user_id)
     result = await session.execute(query)
-    user = result.first()[0]
+    user = result.first()
 
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
+    user_info = user[0]
+
     if data.get("full_name"):
-        user.full_name = data.get("full_name")
+        user_info.full_name = data.get("full_name")
     if data.get("photo_url") is not None:
-        user.photo_url = data.get("photo_url")
+        user_info.photo_url = data.get("photo_url")
 
     await session.commit()
 
     return {"message": "Информация о пользователе обновлена"}
-
-
