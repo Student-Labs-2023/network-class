@@ -22,7 +22,7 @@ class ChannelResponse(BaseModel):
     url: str
     photo_url: str
     isActive: bool
-    owner: str
+    owner_fullname: str
     isPublic: bool
     owner_email: str
 
@@ -32,10 +32,16 @@ class ChannelPost(BaseModel):
     url: str
     photo_url: str
     isActive: bool = True
-    owner: str
     isPublic: bool = True
     owner_email: str
 
 
 class ChannelDelete(BaseModel):
     channel_id: str
+    user_id: int
+
+
+class UserChannel(BaseModel):
+    user_id: int
+    channel_id: int
+    role_id: int

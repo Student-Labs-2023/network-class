@@ -10,9 +10,7 @@ class Channels(Base):
     url = Column(VARCHAR())
     photo_url = Column(VARCHAR())
     isActive = Column(BOOLEAN())
-    owner = Column(VARCHAR())
     isPublic = Column(BOOLEAN())
-    owner_email = Column(VARCHAR())
 
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
@@ -24,3 +22,39 @@ class UserChannels(Base):
     user_id = Column(BIGINT(), primary_key=True)
     channel_id = Column(BIGINT(), primary_key=True)
     role_id = Column(BIGINT())
+
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(BIGINT(), primary_key=True)
+    full_name = Column(VARCHAR(), nullable=False)
+    email = Column(VARCHAR())
+    photo_url = Column(VARCHAR())
+
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+
+class Role(Base):
+    __tablename__ = "roles"
+
+    id = Column(BIGINT(), primary_key=True)
+    name = Column(VARCHAR())
+
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+
+class Chat(Base):
+    __tablename__ = "messages"
+
+    user_id = Column(BIGINT(), primary_key=True)
+    channel_id = Column(BIGINT(), primary_key=True)
+    value = Column(VARCHAR())
+
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
