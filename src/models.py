@@ -58,3 +58,31 @@ class Chat(Base):
 
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+
+class ChannelToken(Base):
+    __tablename__ = "channels_token"
+
+    id = Column(BIGINT(), primary_key=True)
+    token = Column(VARCHAR())
+
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+
+class ChannelSetting(Base):
+    __tablename__ = "channels_setting"
+
+    id = Column(BIGINT(), primary_key=True)
+    webcam_for = Column(VARCHAR())
+    screenshare_for = Column(VARCHAR())
+    screenrecord_for = Column(VARCHAR())
+    micro_for = Column(VARCHAR())
+
+
+class UserChannelSetting(Base):
+    __tablename__ = "user_channel_settings"
+
+    user_id = Column(BIGINT(), primary_key=True)
+    channel_id = Column(BIGINT())
+    name = Column(VARCHAR())

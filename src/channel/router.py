@@ -1,11 +1,12 @@
 from typing import List
 
+import aiohttp
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy import select, insert, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.channel.schemas import ChannelResponse, ChannelPost, ChannelDelete
-from src.models import Channels, UserChannels, Role, User
+from src.models import Channels, UserChannels, Role, User, ChannelToken, ChannelSetting
 from src.database import get_async_session
 
 router = APIRouter(
@@ -63,7 +64,6 @@ async def create_channel(data: ChannelPost, session: AsyncSession = Depends(get_
     query_channel = insert(Channels).values(title=data.title, url=data.url, photo_url=data.photo_url,
                                             isActive=data.isActive, isPublic=data.isActive).returning(Channels)
     result_channel = await session.execute(query_channel)
-    await session.commit()
 
     query = select(Role).where(Role.name == "owner")
     result = await session.execute(query)
@@ -73,35 +73,81 @@ async def create_channel(data: ChannelPost, session: AsyncSession = Depends(get_
     result = await session.execute(query)
     user = result.first()
 
+    channel_id = result_channel.scalars().unique().first().id
+
     query = insert(UserChannels).values({
         "user_id": user[0].id,
-        "channel_id": result_channel.scalars().unique().first().id,
+        "channel_id": channel_id,
         "role_id": int(role[0].id)
     })
     await session.execute(query)
+
+    async with aiohttp.ClientSession() as session_request:
+        react_app_auth_url = "https://network-class-server.ru/videosdk"
+        url_get_token = f"{react_app_auth_url}/get-token"
+        url_create_meeting = f"{react_app_auth_url}/create-meeting"
+        async with session_request.get(url_get_token) as resp:
+            response = await resp.json()
+            token = response.get("token")
+        async with session_request.post(url_create_meeting, data={
+            "token": token
+        }) as resp:
+            response = await resp.json()
+            meeting_id = response.get("meetingId")
+            url_validate_meeting = f"{react_app_auth_url}/validate-meeting/{meeting_id}"
+        async with session_request.post(url_validate_meeting, data={
+            "token": token
+        }) as resp:
+            response = await resp.json()
+            if response.get("disabled"):
+                raise HTTPException(status_code=400, detail="Произошла ошибка при создании meeting_id")
+
+    query = insert(ChannelToken).values(id=channel_id, token=meeting_id)
+    await session.execute(query)
+
+    query = insert(ChannelSetting).values(id=channel_id)
+    await session.execute(query)
+
     await session.commit()
 
     return {"message": "Канал успешно создан"}
 
 
-@router.delete("/")
-async def delete_channel(data: ChannelDelete, session: AsyncSession = Depends(get_async_session)):
+@router.delete("/{channel_id}")
+async def delete_channel(channel_id: int, data: ChannelDelete, session: AsyncSession = Depends(get_async_session)):
     if not is_user_authorized():
         raise HTTPException(status_code=401, detail="Пользователь не авторизован")
 
-    if not data.channel_id or not data.user_id:
+    if not channel_id or not data.user_email:
         raise HTTPException(status_code=403, detail="Неверный фильтр")
 
-    query = select(UserChannels).where(and_(UserChannels.channel_id == data.channel_id, UserChannels.role_id == 1))
+    query = select(UserChannels).where(and_(UserChannels.channel_id == channel_id, UserChannels.role_id == 1))
     result = await session.execute(query)
     channel_permission_user = result.first()
 
     if channel_permission_user is None:
         raise HTTPException(status_code=404, detail="Данного класса не существует")
 
-    if channel_permission_user[0].user_id == data.user_id:
-        query = delete(Channels).where(Channels.id == data.id)
+    query = select(User).where(User.email == data.user_email)
+    result = await session.execute(query)
+    user_info = result.first()
+
+    if user_info is None:
+        raise HTTPException(status_code=404, detail="Данного пользователя не существует")
+
+    if channel_permission_user[0].user_id == user_info[0].id:
+        query = delete(Channels).where(Channels.id == channel_id)
         await session.execute(query)
+
+        query = delete(ChannelToken).where(ChannelToken.id == channel_id)
+        await session.execute(query)
+
+        query = delete(UserChannels).where(UserChannels.channel_id == channel_id)
+        await session.execute(query)
+
+        query = delete(ChannelSetting).where(ChannelSetting.id == channel_id)
+        await session.execute(query)
+
         await session.commit()
     else:
         raise HTTPException(status_code=403, detail="Недостаточно прав")
@@ -132,22 +178,39 @@ async def update_channel(channel_id: int, data: dict, session: AsyncSession = De
 
     query = select(Channels).where(Channels.id == channel_id)
     result = await session.execute(query)
-    channel = result.first()[0]
+    channel = result.first()
 
     if not channel:
         raise HTTPException(status_code=404, detail="Канал не найден")
 
-    if data.get("title"):
-        channel.title = data.get("title")
-    if data.get("url") is not None:
-        channel.url = data.get("url")
-    if data.get("photo_url") is not None:
-        channel.photo_url = data.get("photo_url")
-    if data.get("isActive") is not None:
-        channel.isActive = data.get("isActive")
-    if data.get("isPublic") is not None:
-        channel.isPublic = data.get("isPublic")
+    channel = channel[0]
 
-    await session.commit()
+    if data.get("user_email") is not None:
+        user_email = data.get("user_email")
+    else:
+        raise HTTPException(status_code=404, detail="Не указан Email пользователя")
 
-    return {"message": "Информация о канале обновлена"}
+    query = select(UserChannels).where(and_(UserChannels.channel_id == channel_id, UserChannels.role_id == 1))
+    result = await session.execute(query)
+    channel_permission_user = result.first()
+
+    query = select(User).where(User.email == user_email)
+    result = await session.execute(query)
+    user_info = result.first()
+
+    if channel_permission_user[0].user_id == user_info[0].id:
+        if data.get("title") is not None:
+            channel.title = data.get("title")
+        if data.get("url") is not None:
+            channel.url = data.get("url")
+        if data.get("photo_url") is not None:
+            channel.photo_url = data.get("photo_url")
+        if data.get("isActive") is not None:
+            channel.isActive = data.get("isActive")
+        if data.get("isPublic") is not None:
+            channel.isPublic = data.get("isPublic")
+        await session.commit()
+
+        return {"message": "Информация о канале обновлена"}
+    else:
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
