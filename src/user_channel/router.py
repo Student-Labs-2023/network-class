@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.user_channel.schemas import UserResponse
 from src.channel.schemas import ChannelResponse
-from src.models import Channels, UserChannels, Role, User
+from src.models import Channels, UserChannels, Role, User, UserChannelSetting
 from src.database import get_async_session
 
 router = APIRouter(
@@ -68,7 +68,7 @@ async def get_channel_users(user_id: int, session: AsyncSession = Depends(get_as
 
 
 @router.post("/connect")
-async def append_user_channel(email: str, channel_id: int, session: AsyncSession = Depends(get_async_session)):
+async def append_user_channel(email: str, channel_id: int, name: str, session: AsyncSession = Depends(get_async_session)):
     query = select(User).where(User.email == email)
     result = await session.execute(query)
     user_info = result.first()
@@ -85,6 +85,9 @@ async def append_user_channel(email: str, channel_id: int, session: AsyncSession
         raise HTTPException(status_code=500, detail="Пользователь уже подключён")
 
     query = insert(UserChannels).values(user_id=user_info[0].id, channel_id=channel_id, role_id=2)
+    await session.execute(query)
+
+    query = insert(UserChannelSetting).values(user_id=user_info[0].id, channel_id=channel_id, name=name)
     await session.execute(query)
     await session.commit()
 

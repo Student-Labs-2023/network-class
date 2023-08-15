@@ -1,10 +1,13 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, insert
+from sqlalchemy import select, insert, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from src.database import get_async_session
-from src.models import User
-from src.user.schemas import UserCreate
+from src.models import User, UserChannelSetting
+from src.user.schemas import UserCreate, UserResponse
 
 router = APIRouter(
     prefix="/users",
@@ -47,3 +50,37 @@ async def update_user(user_id: int, data: dict, session: AsyncSession = Depends(
     await session.commit()
 
     return {"message": "Информация о пользователе обновлена"}
+
+@router.get("/{email}")
+async def get_user(email: str, session: AsyncSession = Depends(get_async_session)):
+    query = select(User).where(User.email == email)
+    result = await session.execute(query)
+    user = result.first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    return user[0].as_dict()
+
+@router.put("/{email}/{channel_id}")
+async def change_name(email: str, channel_id: int, data: dict, session: AsyncSession = Depends(get_async_session)):
+    query = select(User).where(User.email == email)
+    result = await session.execute(query)
+    user = result.first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    user = user[0]
+    user_id = data.get("user_id")
+
+
+    query = select(UserChannelSetting).where(and_(UserChannelSetting.user_id == user_id , UserChannelSetting.channel_id == channel_id))
+    result = await session.execute(query)
+    user_channel_setting = result.first()
+
+    if data.get("name") is not None:
+        user_channel_setting.name = data.get("name")
+    await session.commit()
+
+    return {"message": "Имя пользователя изменено"}
