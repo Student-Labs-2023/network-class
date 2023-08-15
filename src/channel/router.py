@@ -6,7 +6,7 @@ from sqlalchemy import select, insert, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.channel.schemas import ChannelResponse, ChannelPost, ChannelDelete
-from src.models import Channels, UserChannels, Role, User, ChannelToken, ChannelSetting
+from src.models import Channels, UserChannels, Role, User, ChannelToken, ChannelSetting, UserChannelSetting
 from src.database import get_async_session
 
 router = APIRouter(
@@ -106,6 +106,9 @@ async def create_channel(data: ChannelPost, session: AsyncSession = Depends(get_
     await session.execute(query)
 
     query = insert(ChannelSetting).values(id=channel_id)
+    await session.execute(query)
+
+    query = insert(UserChannelSetting).values(user_id=user[0].id, channel_id=channel_id, name=user[0].full_name)
     await session.execute(query)
 
     await session.commit()
