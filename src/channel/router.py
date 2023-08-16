@@ -169,9 +169,63 @@ async def get_user_channels(channel_id: int, session: AsyncSession = Depends(get
 
     query = select(Channels).where(Channels.id == channel_id)
     result = await session.execute(query)
-    channel = result.first()
+    channel = result.scalars().first()
 
-    return channel[0].as_dict()
+    if channel is None:
+        raise HTTPException(status_code=403, detail="Указанный класс не найден")
+
+    query = select(ChannelSetting).where(ChannelSetting.id == channel_id)
+    result = await session.execute(query)
+    channel_setting = result.first()
+
+    return {
+        **channel.as_dict(),
+        "webcam_for": channel_setting.webcam_for,
+        "screenshare_for": channel_setting.screenshare_for,
+        "screenrecord_for": channel_setting.screenrecord_for,
+        "micro_for": channel_setting.micro_for
+    }
+
+
+@router.put("/setting/{channel_id}")
+async def update_channel_setting(channel_id: int, data: dict, session: AsyncSession = Depends(get_async_session)):
+    if not is_user_authorized():
+        raise HTTPException(status_code=401, detail="Пользователь не авторизован")
+
+    if data.get("user_email") is not None:
+        user_email = data.get("user_email")
+    else:
+        raise HTTPException(status_code=404, detail="Не указан Email пользователя")
+
+    query = select(ChannelSetting).where(ChannelSetting.id == channel_id)
+    result = await session.execute(query)
+    channel_setting = result.scalars().first()
+
+    if not channel_setting:
+        raise HTTPException(status_code=404, detail="Класс не найден")
+
+    query = select(UserChannels).where(and_(UserChannels.channel_id == channel_id, UserChannels.role_id == 1))
+    result = await session.execute(query)
+    channel_permission_user = result.first()
+
+    query = select(User).where(User.email == user_email)
+    result = await session.execute(query)
+    user_info = result.first()
+
+    if channel_permission_user[0].user_id == user_info[0].id:
+        if data.get("webcam_for") is not None:
+            channel_setting.webcam_for = data.get("webcam_for")
+        if data.get("screenshare_for") is not None:
+            channel_setting.screenshare_for = data.get("screenshare_for")
+        if data.get("screenrecord_for") is not None:
+            channel_setting.screenrecord_for = data.get("screenrecord_for")
+        if data.get("micro_for") is not None:
+            channel_setting.micro_for = data.get("micro_for")
+        await session.commit()
+
+        return {"message": "Настройки канала обновлены"}
+    else:
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
 
 
 @router.put("/{channel_id}")
@@ -184,7 +238,7 @@ async def update_channel(channel_id: int, data: dict, session: AsyncSession = De
     channel = result.first()
 
     if not channel:
-        raise HTTPException(status_code=404, detail="Канал не найден")
+        raise HTTPException(status_code=404, detail="Класс не найден")
 
     channel = channel[0]
 
