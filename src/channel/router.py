@@ -178,12 +178,17 @@ async def get_user_channels(channel_id: int, session: AsyncSession = Depends(get
     result = await session.execute(query)
     channel_setting = result.first()
 
+    query = select(ChannelToken).where(ChannelToken.id == channel_id)
+    result = await session.execute(query)
+    channel_token_info = result.scalars().first()
+
     return {
         **channel.as_dict(),
         "webcam_for": channel_setting.webcam_for,
         "screenshare_for": channel_setting.screenshare_for,
         "screenrecord_for": channel_setting.screenrecord_for,
-        "micro_for": channel_setting.micro_for
+        "micro_for": channel_setting.micro_for,
+        "meeting_id": channel_token_info.token
     }
 
 
