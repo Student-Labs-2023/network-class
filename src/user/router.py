@@ -72,12 +72,13 @@ async def change_name(email: str, channel_id: int, data: dict, session: AsyncSes
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
     user = user[0]
-    user_id = data.get("user_id")
 
-
-    query = select(UserChannelSetting).where(and_(UserChannelSetting.user_id == user_id , UserChannelSetting.channel_id == channel_id))
+    query = select(UserChannelSetting).where(and_(UserChannelSetting.user_id == user.id, UserChannelSetting.channel_id == channel_id))
     result = await session.execute(query)
-    user_channel_setting = result.first()
+    user_channel_setting = result.scalars().first()
+
+    if user_channel_setting is None:
+        raise HTTPException(status_code=404, detail="Настройки пользователя не найдены")
 
     if data.get("name") is not None:
         user_channel_setting.name = data.get("name")
