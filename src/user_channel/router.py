@@ -29,11 +29,27 @@ async def get_channel_users(channel_id: int, session: AsyncSession = Depends(get
     for user in user_channels:
         query = select(User).where(User.id == user[0].user_id)
         result = await session.execute(query)
-        users = result.first()
+        user_info = result.scalars().first()
 
-        users_dict = users[0].as_dict()
+        if user_info is not None:
 
-        response_list.append(users_dict)
+            query = select(UserChannelSetting).where(UserChannelSetting.user_id == user_info.id)
+            result = await session.execute(query)
+            user_setting = result.scalars().first()
+
+            query = (select(Role)
+                     .join(UserChannels, Role.id == UserChannels.role_id)
+                     .filter(UserChannels.user_id == user_info.id)
+                     )
+            result = await session.execute(query)
+            role_info = result.scalars().first()
+
+            users_dict = {
+                **user_info.as_dict(),
+                "name_channel": user_setting.name,
+                "role": role_info.name
+            }
+            response_list.append(users_dict)
 
     return response_list
 
