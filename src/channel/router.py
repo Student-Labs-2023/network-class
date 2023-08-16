@@ -201,14 +201,9 @@ async def get_info_current_channel(channel_id: int, session: AsyncSession = Depe
 
 
 @router.put("/setting/{channel_id}")
-async def update_channel_setting(channel_id: int, data: dict, session: AsyncSession = Depends(get_async_session)):
+async def update_channel_setting(channel_id: int, email: str, data: dict, session: AsyncSession = Depends(get_async_session)):
     if not is_user_authorized():
         raise HTTPException(status_code=401, detail="Пользователь не авторизован")
-
-    if data.get("user_email") is not None:
-        user_email = data.get("user_email")
-    else:
-        raise HTTPException(status_code=404, detail="Не указан Email пользователя")
 
     query = select(ChannelSetting).where(ChannelSetting.id == channel_id)
     result = await session.execute(query)
@@ -221,9 +216,12 @@ async def update_channel_setting(channel_id: int, data: dict, session: AsyncSess
     result = await session.execute(query)
     channel_permission_user = result.first()
 
-    query = select(User).where(User.email == user_email)
+    query = select(User).where(User.email == email)
     result = await session.execute(query)
     user_info = result.first()
+
+    if user_info is None:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
 
     if channel_permission_user[0].user_id == user_info[0].id:
         if data.get("webcam_for") is not None:
