@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy import select, insert, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.error_codes import ERROR_CODE_NOT_FOUND, ERROR_CODE_ACCESS_FORBIDDEN
 from src.user_channel.schemas import UserResponse
 from src.channel.schemas import ChannelResponse
 from src.models import Channels, UserChannels, Role, User, UserChannelSetting
@@ -22,7 +23,7 @@ async def get_channel_users(channel_id: int, session: AsyncSession = Depends(get
     user_channels = result.fetchall()
 
     if len(user_channels) == 0:
-        raise HTTPException(status_code=404, detail="Пользователи не найдены")
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Пользователи не найдены")
 
     response_list = []
 
@@ -61,7 +62,7 @@ async def get_channel_users(user_id: int, session: AsyncSession = Depends(get_as
     user_info = result.fetchone()
 
     if user_info is None:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Пользователь не найден")
 
     query = select(UserChannels).where(UserChannels.user_id == user_id)
     result = await session.execute(query)
@@ -90,7 +91,7 @@ async def append_user_channel(email: str, channel_id: int, name: str, session: A
     user_info = result.first()
 
     if user_info is None:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Пользователь не найден")
 
     query = select(UserChannels).where(
         and_(UserChannels.user_id == user_info[0].id, UserChannels.channel_id == channel_id))
@@ -98,7 +99,7 @@ async def append_user_channel(email: str, channel_id: int, name: str, session: A
     channel_info = result.first()
 
     if channel_info is not None:
-        raise HTTPException(status_code=500, detail="Пользователь уже подключён")
+        raise HTTPException(status_code=ERROR_CODE_ACCESS_FORBIDDEN, detail="Пользователь уже подключён")
 
     query = insert(UserChannels).values(user_id=user_info[0].id, channel_id=channel_id, role_id=2)
     await session.execute(query)
@@ -117,7 +118,7 @@ async def delete_user(user_id: int, channel_id: int, session: AsyncSession = Dep
     user_info = result.first()
 
     if user_info is None:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Пользователь не найден")
 
     query = delete(UserChannels).where(and_(UserChannels.user_id == user_id, UserChannels.channel_id == channel_id))
     await session.execute(query)

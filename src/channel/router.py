@@ -1,7 +1,9 @@
 from typing import List
 
 import aiohttp
+
 from fastapi import APIRouter, HTTPException, Depends
+
 from sqlalchemy import select, insert, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,57 +11,56 @@ from src.channel.schemas import ChannelResponse, ChannelPost, ChannelDelete
 from src.models import Channels, UserChannels, Role, User, ChannelToken, ChannelSetting, UserChannelSetting
 from src.database import get_async_session
 
+from src.error_codes import ERROR_CODE_USER_NOT_AUTHORIZED, ERROR_CODE_ACCESS_FORBIDDEN, ERROR_CODE_NOT_FOUND, \
+    ERROR_CODE_ON_SERVER, ERROR_CODE_CONFLICT_CREATE, ERROR_CODE_BAD_FILTER
+
+from pydantic import ValidationError
+
 router = APIRouter(
     prefix="/channels",
-    tags=["Health"]
+    tags=["Channels"]
 )
 
 
 @router.get("/", response_model=List[ChannelResponse])
 async def get_channels(page: int = 1, page_size: int = 10, session: AsyncSession = Depends(get_async_session)):
     if not is_user_authorized():
-        raise HTTPException(status_code=401, detail="Пользователь не авторизован")
+        raise HTTPException(status_code=ERROR_CODE_USER_NOT_AUTHORIZED, detail="Пользователь не авторизован")
 
     start_index = (page - 1) * page_size
     end_index = start_index + page_size
 
     query = select(Channels).filter().slice(start_index, end_index)
     result = await session.execute(query)
-    channels = result.fetchall()
+    channels = result.scalars().fetchall()
 
     response_list = []
     for channel in channels:
-        query = select(UserChannels).where(UserChannels.channel_id == channel[0].id)
+        query = (select(User)
+                 .join(UserChannels, User.id == UserChannels.user_id)
+                 .filter(and_(UserChannels.channel_id == channel.id, UserChannels.role_id == 1))
+                 )
         result = await session.execute(query)
-        user_id = result.fetchone()
-
-        query = select(User).where(User.id == user_id[0].user_id)
-        result = await session.execute(query)
-        user_info = result.fetchone()
-
-        channel_dict = channel[0].as_dict()
-        channel_dict["owner_email"] = user_info[0].email
-        channel_dict["owner_fullname"] = user_info[0].full_name
-
-        response_list.append(channel_dict)
-
+        user_info = result.scalars().first()
+        response_list.append({
+            **channel.as_dict(),
+            "owner_email": user_info.email if user_info.email is not None else "test@gmail.com",
+            "owner_fullname": user_info.full_name if user_info.full_name is not None else "test@gmail.com"
+        })
     return response_list
 
 
 @router.post("/")
 async def create_channel(data: ChannelPost, session: AsyncSession = Depends(get_async_session)):
     if not is_user_authorized():
-        raise HTTPException(status_code=401, detail="Пользователь не авторизован")
-
-    if not data.title or not data.owner_email:
-        raise HTTPException(status_code=403, detail="Неверный фильтр")
+        raise HTTPException(status_code=ERROR_CODE_USER_NOT_AUTHORIZED, detail="Пользователь не авторизован")
 
     query = select(Channels).where(Channels.title == data.title)
     result = await session.execute(query)
     channel = result.first()
 
     if channel:
-        raise HTTPException(status_code=400, detail="Канал с таким именем уже существует")
+        raise HTTPException(status_code=ERROR_CODE_CONFLICT_CREATE, detail="Канал с таким именем уже существует")
 
     query_channel = insert(Channels).values(title=data.title, url=data.url, photo_url=data.photo_url,
                                             isActive=data.isActive, isPublic=data.isActive).returning(Channels)
@@ -100,7 +101,7 @@ async def create_channel(data: ChannelPost, session: AsyncSession = Depends(get_
         }) as resp:
             response = await resp.json()
             if response.get("disabled"):
-                raise HTTPException(status_code=400, detail="Произошла ошибка при создании meeting_id")
+                raise HTTPException(status_code=ERROR_CODE_ON_SERVER, detail="Произошла ошибка при создании meeting_id")
 
     query = insert(ChannelToken).values(id=channel_id, token=meeting_id)
     await session.execute(query)
@@ -116,27 +117,28 @@ async def create_channel(data: ChannelPost, session: AsyncSession = Depends(get_
     return {"message": "Канал успешно создан"}
 
 
+
 @router.delete("/{channel_id}")
 async def delete_channel(channel_id: int, data: ChannelDelete, session: AsyncSession = Depends(get_async_session)):
     if not is_user_authorized():
-        raise HTTPException(status_code=401, detail="Пользователь не авторизован")
+        raise HTTPException(status_code=ERROR_CODE_USER_NOT_AUTHORIZED, detail="Пользователь не авторизован")
 
     if not channel_id or not data.user_email:
-        raise HTTPException(status_code=403, detail="Неверный фильтр")
+        raise HTTPException(status_code=ERROR_CODE_BAD_FILTER, detail="Неверный фильтр")
 
     query = select(UserChannels).where(and_(UserChannels.channel_id == channel_id, UserChannels.role_id == 1))
     result = await session.execute(query)
     channel_permission_user = result.first()
 
     if channel_permission_user is None:
-        raise HTTPException(status_code=404, detail="Данного класса не существует")
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Данного класса не существует")
 
     query = select(User).where(User.email == data.user_email)
     result = await session.execute(query)
     user_info = result.first()
 
     if user_info is None:
-        raise HTTPException(status_code=404, detail="Данного пользователя не существует")
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Данного пользователя не существует")
 
     if channel_permission_user[0].user_id == user_info[0].id:
         query = delete(Channels).where(Channels.id == channel_id)
@@ -153,7 +155,7 @@ async def delete_channel(channel_id: int, data: ChannelDelete, session: AsyncSes
 
         await session.commit()
     else:
-        raise HTTPException(status_code=403, detail="Недостаточно прав")
+        raise HTTPException(status_code=ERROR_CODE_ACCESS_FORBIDDEN, detail="Недостаточно прав")
 
     return {"message": f"Канал успешно удалён"}
 
@@ -165,14 +167,14 @@ def is_user_authorized():
 @router.get("/{channel_id}")
 async def get_info_current_channel(channel_id: int, session: AsyncSession = Depends(get_async_session)):
     if not is_user_authorized():
-        raise HTTPException(status_code=401, detail="Пользователь не авторизован")
+        raise HTTPException(status_code=ERROR_CODE_USER_NOT_AUTHORIZED, detail="Пользователь не авторизован")
 
     query = select(Channels).where(Channels.id == channel_id)
     result = await session.execute(query)
     channel = result.scalars().first()
 
     if channel is None:
-        raise HTTPException(status_code=403, detail="Указанный класс не найден")
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Указанный класс не найден")
 
     query = select(ChannelSetting).where(ChannelSetting.id == channel_id)
     result = await session.execute(query)
@@ -201,16 +203,17 @@ async def get_info_current_channel(channel_id: int, session: AsyncSession = Depe
 
 
 @router.put("/setting/{channel_id}")
-async def update_channel_setting(channel_id: int, email: str, data: dict, session: AsyncSession = Depends(get_async_session)):
+async def update_channel_setting(channel_id: int, email: str, data: dict,
+                                 session: AsyncSession = Depends(get_async_session)):
     if not is_user_authorized():
-        raise HTTPException(status_code=401, detail="Пользователь не авторизован")
+        raise HTTPException(status_code=ERROR_CODE_USER_NOT_AUTHORIZED, detail="Пользователь не авторизован")
 
     query = select(ChannelSetting).where(ChannelSetting.id == channel_id)
     result = await session.execute(query)
     channel_setting = result.scalars().first()
 
     if not channel_setting:
-        raise HTTPException(status_code=404, detail="Класс не найден")
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Класс не найден")
 
     query = select(UserChannels).where(and_(UserChannels.channel_id == channel_id, UserChannels.role_id == 1))
     result = await session.execute(query)
@@ -221,7 +224,7 @@ async def update_channel_setting(channel_id: int, email: str, data: dict, sessio
     user_info = result.first()
 
     if user_info is None:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Пользователь не найден")
 
     if channel_permission_user[0].user_id == user_info[0].id:
         if data.get("webcam_for") is not None:
@@ -236,27 +239,25 @@ async def update_channel_setting(channel_id: int, email: str, data: dict, sessio
 
         return {"message": "Настройки канала обновлены"}
     else:
-        raise HTTPException(status_code=403, detail="Недостаточно прав")
+        raise HTTPException(status_code=ERROR_CODE_ACCESS_FORBIDDEN, detail="Недостаточно прав")
 
 
 @router.put("/{channel_id}")
 async def update_channel(channel_id: int, data: dict, session: AsyncSession = Depends(get_async_session)):
     if not is_user_authorized():
-        raise HTTPException(status_code=401, detail="Пользователь не авторизован")
+        raise HTTPException(status_code=ERROR_CODE_USER_NOT_AUTHORIZED, detail="Пользователь не авторизован")
 
     query = select(Channels).where(Channels.id == channel_id)
     result = await session.execute(query)
-    channel = result.first()
+    channel = result.scalars().first()
 
     if not channel:
-        raise HTTPException(status_code=404, detail="Класс не найден")
-
-    channel = channel[0]
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Класс не найден")
 
     if data.get("user_email") is not None:
         user_email = data.get("user_email")
     else:
-        raise HTTPException(status_code=404, detail="Не указан Email пользователя")
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Не указан Email пользователя")
 
     query = select(UserChannels).where(and_(UserChannels.channel_id == channel_id, UserChannels.role_id == 1))
     result = await session.execute(query)
@@ -281,4 +282,4 @@ async def update_channel(channel_id: int, data: dict, session: AsyncSession = De
 
         return {"message": "Информация о канале обновлена"}
     else:
-        raise HTTPException(status_code=403, detail="Недостаточно прав")
+        raise HTTPException(status_code=ERROR_CODE_ACCESS_FORBIDDEN, detail="Недостаточно прав")

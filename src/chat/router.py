@@ -35,11 +35,6 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-@router.get("/")
-async def test():
-    pass
-
-
 @router.websocket("/ws/{channel_id}/")
 async def websocket_endpoint_chat(websocket: WebSocket, channel_id: int, session: AsyncSession = Depends(get_async_session)):
     await manager.connect(websocket, channel_id)

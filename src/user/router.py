@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from src.database import get_async_session
+from src.error_codes import ERROR_CODE_CONFLICT_CREATE, ERROR_CODE_NOT_FOUND
 from src.models import User, UserChannelSetting, Role, UserChannels
 from src.user.schemas import UserCreate, UserResponse
 
@@ -22,7 +23,7 @@ async def create_user(data: UserCreate, session: AsyncSession = Depends(get_asyn
     channel = result.first()
 
     if channel is None:
-        raise HTTPException(status_code=400, detail="Такой пользователь уже существует")
+        raise HTTPException(status_code=ERROR_CODE_CONFLICT_CREATE, detail="Такой пользователь уже существует")
 
     query = insert(User).values(**data.dict()).returning(User)
     query_result = await session.execute(query)
@@ -38,7 +39,7 @@ async def update_user(user_id: int, data: dict, session: AsyncSession = Depends(
     user = result.first()
 
     if user is None:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Пользователь не найден")
 
     user_info = user[0]
 
@@ -59,7 +60,7 @@ async def get_user(email: str, session: AsyncSession = Depends(get_async_session
     user = result.first()
 
     if user is None:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Пользователь не найден")
 
     return user[0].as_dict()
 
@@ -72,7 +73,7 @@ async def get_info_setting_user_channel(email: str, channel_id: int,
     user_info = result.scalars().first()
 
     if user_info is None:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Пользователь не найден")
 
     query = select(Role).join(UserChannels, Role.id == UserChannels.role_id).filter(
         and_(UserChannels.channel_id == channel_id,
@@ -86,7 +87,7 @@ async def get_info_setting_user_channel(email: str, channel_id: int,
     user_setting_info = result.scalars().first()
 
     if user_setting_info is None:
-        raise HTTPException(status_code=404, detail="Класс не найден")
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Класс не найден")
 
     return {
         **user_info.as_dict(),
@@ -102,7 +103,7 @@ async def change_name(email: str, channel_id: int, data: dict, session: AsyncSes
     user = result.first()
 
     if user is None:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Пользователь не найден")
 
     user = user[0]
 
@@ -112,7 +113,7 @@ async def change_name(email: str, channel_id: int, data: dict, session: AsyncSes
     user_channel_setting = result.scalars().first()
 
     if user_channel_setting is None:
-        raise HTTPException(status_code=404, detail="Настройки пользователя не найдены")
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Настройки пользователя не найдены")
 
     if data.get("name") is not None:
         user_channel_setting.name = data.get("name")
