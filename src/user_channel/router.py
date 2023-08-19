@@ -54,34 +54,27 @@ async def get_channel_users(channel_id: int, session: AsyncSession = Depends(get
     return response_list
 
 
-@router.get("/my/{user_id}/", response_model=List[ChannelResponse])
-async def get_channel_users(user_id: int, session: AsyncSession = Depends(get_async_session)):
-    query = select(User).where(User.id == user_id)
+@router.get("/my/{email}/", response_model=List[ChannelResponse])
+async def get_channel_users(email: str, session: AsyncSession = Depends(get_async_session)):
+    query = select(User).where(User.email == email)
     result = await session.execute(query)
-    user_info = result.fetchone()
+    user_info: User = result.scalars().first()
 
     if user_info is None:
         raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Пользователь не найден")
 
-    query = select(UserChannels).where(UserChannels.user_id == user_id)
+    query = (select(Channels)
+             .join(UserChannels, Channels.id == UserChannels.channel_id)
+             .filter(and_(UserChannels.role_id == 1, UserChannels.user_id == user_info.id))
+             )
     result = await session.execute(query)
-    user_channels = result.fetchall()
+    user_channels: List[Channels] = result.scalars().unique().fetchall()
 
-    response_list = []
-
-    for user_channel in user_channels:
-        query = select(Channels).where(Channels.id == user_channel[0].channel_id)
-        result = await session.execute(query)
-        channel = result.first()
-
-        channel_dict = channel[0].as_dict()
-        channel_dict["owner_email"] = user_info[0].email
-        channel_dict["owner_fullname"] = user_info[0].full_name
-
-        response_list.append(channel_dict)
-
-    return response_list
-
+    return [{
+        **channel.as_dict(),
+        "owner_email": user_info.email,
+        "owner_fullname": user_info.full_name
+    }for channel in user_channels]
 
 @router.post("/connect")
 async def append_user_channel(email: str, channel_id: int, session: AsyncSession = Depends(get_async_session)):
