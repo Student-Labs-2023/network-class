@@ -85,26 +85,26 @@ async def get_channel_users(user_id: int, session: AsyncSession = Depends(get_as
 
 
 @router.post("/connect")
-async def append_user_channel(email: str, channel_id: int, name: str, session: AsyncSession = Depends(get_async_session)):
+async def append_user_channel(email: str, channel_id: int, session: AsyncSession = Depends(get_async_session)):
     query = select(User).where(User.email == email)
     result = await session.execute(query)
-    user_info = result.first()
+    user_info: User = result.scalars().first()
 
     if user_info is None:
         raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Пользователь не найден")
 
     query = select(UserChannels).where(
-        and_(UserChannels.user_id == user_info[0].id, UserChannels.channel_id == channel_id))
+        and_(UserChannels.user_id == user_info.id, UserChannels.channel_id == channel_id))
     result = await session.execute(query)
     channel_info = result.first()
 
     if channel_info is not None:
         raise HTTPException(status_code=ERROR_CODE_ACCESS_FORBIDDEN, detail="Пользователь уже подключён")
 
-    query = insert(UserChannels).values(user_id=user_info[0].id, channel_id=channel_id, role_id=2)
+    query = insert(UserChannels).values(user_id=user_info.id, channel_id=channel_id, role_id=2)
     await session.execute(query)
 
-    query = insert(UserChannelSetting).values(user_id=user_info[0].id, channel_id=channel_id, name=name)
+    query = insert(UserChannelSetting).values(user_id=user_info.id, channel_id=channel_id, name=user_info.full_name)
     await session.execute(query)
     await session.commit()
 

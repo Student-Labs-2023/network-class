@@ -1,8 +1,5 @@
-fastapi~=0.100.1
 SQLAlchemy~=2.0.19
 pydantic~=2.1.1
 starlette~=0.27.0
 python-dotenv~=1.0.0
 gunicorn
-asyncpg
-uvicorn

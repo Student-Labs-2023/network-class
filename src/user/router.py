@@ -22,7 +22,8 @@ async def create_user(data: UserCreate, session: AsyncSession = Depends(get_asyn
     result = await session.execute(query)
     channel = result.first()
 
-    if channel is None:
+    if channel is not None:
+
         raise HTTPException(status_code=ERROR_CODE_CONFLICT_CREATE, detail="Такой пользователь уже существует")
 
     query = insert(User).values(**data.dict()).returning(User)
