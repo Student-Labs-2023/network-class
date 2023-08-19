@@ -41,11 +41,11 @@ async def get_channels(page: int = 1, page_size: int = 10, session: AsyncSession
                  .filter(and_(UserChannels.channel_id == channel.id, UserChannels.role_id == 1))
                  )
         result = await session.execute(query)
-        user_info = result.scalars().first()
+        user_info: User = result.scalars().first()
         response_list.append({
             **channel.as_dict(),
-            "owner_email": user_info.email if user_info.email is not None else "test@gmail.com",
-            "owner_fullname": user_info.full_name if user_info.full_name is not None else "test@gmail.com"
+            "owner_email": "test@gmail.com" if user_info is None else user_info.email,
+            "owner_fullname": "test@gmail.com" if user_info is None else user_info.full_name
         })
     return response_list
 

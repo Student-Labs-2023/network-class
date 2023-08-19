@@ -33,7 +33,6 @@ async def get_channel_users(channel_id: int, session: AsyncSession = Depends(get
         user_info = result.scalars().first()
 
         if user_info is not None:
-
             query = select(UserChannelSetting).where(UserChannelSetting.user_id == user_info.id)
             result = await session.execute(query)
             user_setting = result.scalars().first()
@@ -112,16 +111,50 @@ async def append_user_channel(email: str, channel_id: int, session: AsyncSession
 
 
 @router.delete("/disconnect")
-async def delete_user(user_id: int, channel_id: int, session: AsyncSession = Depends(get_async_session)):
-    query = select(User).where(User.id == user_id)
+async def delete_user(email: str, channel_id: int, session: AsyncSession = Depends(get_async_session)):
+    query = select(User).where(User.email == email)
     result = await session.execute(query)
-    user_info = result.first()
+    user_info: User = result.scalars().first()
 
     if user_info is None:
         raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Пользователь не найден")
 
-    query = delete(UserChannels).where(and_(UserChannels.user_id == user_id, UserChannels.channel_id == channel_id))
+    query = delete(UserChannels).where(and_(UserChannels.user_id == user_info.user_id, UserChannels.channel_id == channel_id))
     await session.execute(query)
     await session.commit()
 
     return {"message": "Пользователь удалён"}
+
+
+@router.get("/available/{email}")
+async def get_available_channels(email: str, session: AsyncSession = Depends(get_async_session)):
+    query = select(User).where(User.email == email)
+    result = await session.execute(query)
+    user_info: User = result.scalars().first()
+
+    if user_info is None:
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Пользователь не найден")
+
+    query = (select(Channels)
+             .join(UserChannels, Channels.id == UserChannels.channel_id)
+             .filter(UserChannels.user_id == user_info.id)
+             )
+    result = await session.execute(query)
+    response_list = []
+    channels_list: List[Channels] = result.scalars().unique().fetchall()
+    for channel in channels_list:
+        query = (select(User)
+                 .join(UserChannels, User.id == UserChannels.user_id)
+                 .filter(and_(UserChannels.channel_id == channel.id, UserChannels.role_id == 1))
+                 )
+        result = await session.execute(query)
+        user_channel_info: User = result.scalars().first()
+        response_list.append({
+            **channel.as_dict(),
+            "owner_email": "test@gmail.com" if user_channel_info is None else user_channel_info.email,
+            "owner_fullname": "test@gmail.com" if user_channel_info is None else user_channel_info.full_name
+        })
+
+    return response_list
+
+
