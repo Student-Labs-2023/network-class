@@ -5,9 +5,9 @@ from sqlalchemy import select, insert, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.error_codes import ERROR_CODE_NOT_FOUND, ERROR_CODE_ACCESS_FORBIDDEN
-from src.user_channel.schemas import UserResponse
+from src.user_channel.schemas import UserResponse, SettingChannel
 from src.channel.schemas import ChannelResponse
-from src.models import Channels, UserChannels, Role, User, UserChannelSetting
+from src.models import Channels, UserChannels, Role, User, UserChannelSetting, ChannelSetting
 from src.database import get_async_session
 
 router = APIRouter(
@@ -74,7 +74,8 @@ async def get_channel_users(email: str, session: AsyncSession = Depends(get_asyn
         **channel.as_dict(),
         "owner_email": user_info.email,
         "owner_fullname": user_info.full_name
-    }for channel in user_channels]
+    } for channel in user_channels]
+
 
 @router.post("/connect")
 async def append_user_channel(email: str, channel_id: int, session: AsyncSession = Depends(get_async_session)):
@@ -112,7 +113,8 @@ async def delete_user(email: str, channel_id: int, session: AsyncSession = Depen
     if user_info is None:
         raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Пользователь не найден")
 
-    query = delete(UserChannels).where(and_(UserChannels.user_id == user_info.user_id, UserChannels.channel_id == channel_id))
+    query = delete(UserChannels).where(
+        and_(UserChannels.user_id == user_info.user_id, UserChannels.channel_id == channel_id))
     await session.execute(query)
     await session.commit()
 
@@ -151,3 +153,55 @@ async def get_available_channels(email: str, session: AsyncSession = Depends(get
     return response_list
 
 
+@router.put("/setting/{channel_id}/{email}")
+async def setting_channel_edit(channel_id: int, email: str, data: SettingChannel,
+                               session: AsyncSession = Depends(get_async_session)):
+    response = {
+        "detail": ""
+    }
+
+    if data.user_channel_name is not None:
+        query = (select(UserChannelSetting)
+                 .join(User, UserChannelSetting.user_id == User.id)
+                 .filter(User.email == email)
+                 )
+        result = await session.execute(query)
+        user_setting_channel: UserChannelSetting = result.scalars().first()
+
+        if user_setting_channel is None:
+            raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Пользователь не найден")
+
+        user_setting_channel.name = data.user_channel_name
+
+        response["detail"] = "Вы изменили имя пользователя в классе."
+
+    if data.micro_for is not None or data.screenrecord_for is not None or data.webcam_for is not None \
+            or data.screenshare_for is not None:
+        query = (select(ChannelSetting)
+                 .join(UserChannels, ChannelSetting.id == UserChannels.channel_id)
+                 .join(User, UserChannels.user_id == User.id)
+                 .filter(and_(UserChannels.channel_id == channel_id, User.email == email, UserChannels.role_id == 1))
+                 )
+
+        result = await session.execute(query)
+        channel_setting: ChannelSetting = result.scalars().first()
+
+        if channel_setting is None:
+            raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Класс не найден")
+
+        if data.micro_for is not None:
+            channel_setting.micro_for = data.micro_for
+        if data.webcam_for is not None:
+            channel_setting.webcam_for = data.webcam_for
+        if data.screenshare_for is not None:
+            channel_setting.screenshare_for = data.screenshare_for
+        if data.screenrecord_for is not None:
+            channel_setting.screenrecord_for = data.screenrecord_for
+
+        response["detail"] += " Вы изменили настройки класса."
+
+    await session.commit()
+
+    response["detail"] = "Вы не передали нужных данных" if response["detail"] == "" else response["detail"]
+
+    return response
