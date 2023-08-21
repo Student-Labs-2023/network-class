@@ -16,6 +16,8 @@ app.include_router(router_user_channel)
 app.include_router(router_chat)
 
 origins = ["https://network-class.pages.dev",
+           "http://localhost:3000",
+           "https://network-class-videosdk-client.pages.dev",
            "http://localhost:5173",]
 
 app.add_middleware(
@@ -26,5 +28,3 @@ app.add_middleware(
     allow_headers=["Content-Type", "Set-Cookie", "Access-Control-Allow-Headers", "Access-Control-Allow-Origin",
                    "Authorization"],
 )
-
-

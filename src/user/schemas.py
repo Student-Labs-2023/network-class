@@ -8,4 +8,6 @@ class UserCreate(BaseModel):
 
 
 class UserResponse(BaseModel):
-    pass
+    full_name: str
+    photo_url: str
+    email: str
