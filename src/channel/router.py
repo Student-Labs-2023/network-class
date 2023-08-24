@@ -11,6 +11,8 @@ from src.auth.auth import token_auth0_scheme, check_auth
 from src.channel.schemas import ChannelResponse, ChannelPost, ChannelDelete
 from src.models import Channels, UserChannels, Role, User, ChannelToken, ChannelSetting, UserChannelSetting
 from src.database import get_async_session
+from src.user_channel.schemas import SettingChannel
+
 from src.error_codes import ERROR_CODE_USER_NOT_AUTHORIZED, ERROR_CODE_ACCESS_FORBIDDEN, ERROR_CODE_NOT_FOUND, \
     ERROR_CODE_ON_SERVER, ERROR_CODE_CONFLICT_CREATE, ERROR_CODE_BAD_FILTER
 
@@ -112,6 +114,7 @@ async def create_channel(data: ChannelPost, session: AsyncSession = Depends(get_
     await session.commit()
 
     return {"message": "Канал успешно создан"}
+
 
 
 @router.delete("/{channel_id}")
@@ -279,3 +282,30 @@ async def update_channel(channel_id: int, data: dict, session: AsyncSession = De
         return {"message": "Информация о канале обновлена"}
     else:
         raise HTTPException(status_code=ERROR_CODE_ACCESS_FORBIDDEN, detail="Недостаточно прав")
+
+@router.get("/{channel_id}/{user_id}")
+async def get_settings(channel_id: int, user_id: int, session: AsyncSession = Depends(get_async_session)):
+    query = select(UserChannelSetting).where(and_(UserChannelSetting.user_id == user_id, UserChannelSetting.channel_id == channel_id))
+    result = await session.execute(query)
+    user_setting_channel = result.scalars().first()
+
+    query = select(ChannelSetting).where(ChannelSetting.id == channel_id)
+    result = await session.execute(query)
+    channel_setting = result.scalars().first()
+
+    query = select(UserChannels).where(and_(UserChannels.channel_id == channel_id, UserChannels.user_id == user_id))
+    result = await session.execute(query)
+    user_info = result.scalars().first()
+
+    if user_info.role_id == 1:
+        return{
+            "user_channel_name": user_setting_channel.name,
+            "webcam_for": channel_setting.webcam_for,
+            "screenshare_for": channel_setting.screenshare_for,
+            "screenrecord_for": channel_setting.screenrecord_for,
+            "micro_for": channel_setting.micro_for
+        }
+    else:
+        return{
+            "user_channel_name": user_setting_channel.name
+        }
