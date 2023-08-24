@@ -41,7 +41,7 @@ async def websocket_endpoint_search(websocket: WebSocket, session: AsyncSession 
                 data = await websocket.receive_text()
                 json_data = json.loads(data)
                 if isinstance(json_data, dict):
-                    if json_data.get("filter") and json_data.get("search_string"):
+                    if json_data.get("filter") and json_data.get("search_string") is not None:
                         filter_string = json_data.get("filter")
                         search_string = json_data.get("search_string")
                         search = "%{}%".format(search_string)
@@ -56,6 +56,7 @@ async def websocket_endpoint_search(websocket: WebSocket, session: AsyncSession 
                         if filter_string == "my":
                             user_email = json_data.get("user_email")
                             query = query.filter(and_(Role.name == "owner", User.email == user_email))
+
                         elif filter_string == "access":
                             user_email = json_data.get("user_email")
                             query = query.filter(User.email == user_email)

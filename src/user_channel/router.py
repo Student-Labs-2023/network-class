@@ -191,14 +191,14 @@ async def setting_channel_edit(channel_id: int, email: str, data: SettingChannel
         )
 
         result = await session.execute(query)
-        edit_setting_channel: UserChannelSetting = result.scalars().unique().fetchall()
+        edit_setting_channel: List[UserChannelSetting] = result.scalars().unique().fetchall()
         updated_rows = len(edit_setting_channel)
 
         await session.commit()
 
         response = {
             "detail": f"Вы изменили имя у {updated_rows} количества пользователей в классе.",
-            **edit_setting_channel.as_dict()
+            **edit_setting_channel[0].as_dict()
         }
 
     if data.micro_for or data.screenrecord_for or data.webcam_for or data.screenshare_for:
