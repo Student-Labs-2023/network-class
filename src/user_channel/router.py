@@ -1,7 +1,7 @@
 from typing import List
 
 from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy import select, insert, delete, and_
+from sqlalchemy import select, insert, delete, and_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.error_codes import ERROR_CODE_NOT_FOUND, ERROR_CODE_ACCESS_FORBIDDEN
@@ -92,16 +92,31 @@ async def append_user_channel(email: str, channel_id: int, session: AsyncSession
     channel_info = result.first()
 
     if channel_info is not None:
-        raise HTTPException(status_code=ERROR_CODE_ACCESS_FORBIDDEN, detail="Пользователь уже подключён")
+        query = (select(UserChannelSetting)
+                 .where(and_(UserChannelSetting.user_id == user_info.id,
+                             UserChannelSetting.channel_id == channel_id))
+                 )
+        result = await session.execute(query)
+        user_channel_setting: UserChannelSetting = result.scalars().first()
+        return {
+            "name_channel": user_channel_setting.name
+        }
 
     query = insert(UserChannels).values(user_id=user_info.id, channel_id=channel_id, role_id=2)
     await session.execute(query)
 
-    query = insert(UserChannelSetting).values(user_id=user_info.id, channel_id=channel_id, name=user_info.full_name)
-    await session.execute(query)
+    query = (insert(UserChannelSetting)
+             .values(user_id=user_info.id, channel_id=channel_id, name=user_info.full_name)
+             .returning(UserChannelSetting)
+             )
+    result = await session.execute(query)
+    user_channel_setting_created: UserChannelSetting = result.scalars().first()
+
     await session.commit()
 
-    return {"message": "Пользователь добавлен"}
+    return {
+        "name_channel": user_channel_setting_created.name
+    }
 
 
 @router.delete("/disconnect")
@@ -160,23 +175,33 @@ async def setting_channel_edit(channel_id: int, email: str, data: SettingChannel
         "detail": ""
     }
 
-    if data.user_channel_name is not None:
-        query = (select(UserChannelSetting)
-                 .join(User, UserChannelSetting.user_id == User.id)
-                 .filter(User.email == email)
-                 )
+    if data.user_channel_name:
+        query = select(User).where(User.email == email)
         result = await session.execute(query)
-        user_setting_channel: UserChannelSetting = result.scalars().first()
+        user_info: User = result.scalars().first()
 
-        if user_setting_channel is None:
+        if user_info is None:
             raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Пользователь не найден")
 
-        user_setting_channel.name = data.user_channel_name
+        query = (
+            update(UserChannelSetting)
+            .where(and_(UserChannelSetting.user_id == user_info.id, UserChannelSetting.channel_id == channel_id))
+            .values(name=data.user_channel_name)  # Замените на соответствующее поле для обновления
+            .returning(UserChannelSetting)
+        )
 
-        response["detail"] = "Вы изменили имя пользователя в классе."
+        result = await session.execute(query)
+        edit_setting_channel: UserChannelSetting = result.scalars().unique().fetchall()
+        updated_rows = len(edit_setting_channel)
 
-    if data.micro_for is not None or data.screenrecord_for is not None or data.webcam_for is not None \
-            or data.screenshare_for is not None:
+        await session.commit()
+
+        response = {
+            "detail": f"Вы изменили имя у {updated_rows} количества пользователей в классе.",
+            **edit_setting_channel.as_dict()
+        }
+
+    if data.micro_for or data.screenrecord_for or data.webcam_for or data.screenshare_for:
         query = (select(ChannelSetting)
                  .join(UserChannels, ChannelSetting.id == UserChannels.channel_id)
                  .join(User, UserChannels.user_id == User.id)
@@ -189,18 +214,22 @@ async def setting_channel_edit(channel_id: int, email: str, data: SettingChannel
         if channel_setting is None:
             raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Класс не найден")
 
-        if data.micro_for is not None:
+        if data.micro_for:
             channel_setting.micro_for = data.micro_for
-        if data.webcam_for is not None:
+        if data.webcam_for:
             channel_setting.webcam_for = data.webcam_for
-        if data.screenshare_for is not None:
+        if data.screenshare_for:
             channel_setting.screenshare_for = data.screenshare_for
-        if data.screenrecord_for is not None:
+        if data.screenrecord_for:
             channel_setting.screenrecord_for = data.screenrecord_for
 
-        response["detail"] += " Вы изменили настройки класса."
+        await session.commit()
 
-    await session.commit()
+        response["detail"] += " Вы изменили настройки класса."
+        response["micro_for"] = channel_setting.micro_for
+        response["webcam_for"] = channel_setting.webcam_for
+        response["screenshare_for"] = channel_setting.screenshare_for
+        response["screenrecord_for"] = channel_setting.screenrecord_for
 
     response["detail"] = "Вы не передали нужных данных" if response["detail"] == "" else response["detail"]
 

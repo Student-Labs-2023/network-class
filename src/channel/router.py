@@ -4,17 +4,15 @@ import aiohttp
 
 from fastapi import APIRouter, HTTPException, Depends
 
-from sqlalchemy import select, insert, delete, and_
+from sqlalchemy import select, insert, delete, and_, Column
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.auth.auth import token_auth0_scheme, check_auth
 from src.channel.schemas import ChannelResponse, ChannelPost, ChannelDelete
 from src.models import Channels, UserChannels, Role, User, ChannelToken, ChannelSetting, UserChannelSetting
 from src.database import get_async_session
-
 from src.error_codes import ERROR_CODE_USER_NOT_AUTHORIZED, ERROR_CODE_ACCESS_FORBIDDEN, ERROR_CODE_NOT_FOUND, \
     ERROR_CODE_ON_SERVER, ERROR_CODE_CONFLICT_CREATE, ERROR_CODE_BAD_FILTER
-
-from pydantic import ValidationError
 
 router = APIRouter(
     prefix="/channels",
@@ -24,8 +22,7 @@ router = APIRouter(
 
 @router.get("/", response_model=List[ChannelResponse])
 async def get_channels(page: int = 1, page_size: int = 10, session: AsyncSession = Depends(get_async_session)):
-    if not is_user_authorized():
-        raise HTTPException(status_code=ERROR_CODE_USER_NOT_AUTHORIZED, detail="Пользователь не авторизован")
+    # await check_auth(token) # Validation
 
     start_index = (page - 1) * page_size
     end_index = start_index + page_size
@@ -115,7 +112,6 @@ async def create_channel(data: ChannelPost, session: AsyncSession = Depends(get_
     await session.commit()
 
     return {"message": "Канал успешно создан"}
-
 
 
 @router.delete("/{channel_id}")
