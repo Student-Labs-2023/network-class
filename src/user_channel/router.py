@@ -55,7 +55,7 @@ async def get_channel_users(channel_id: int, session: AsyncSession = Depends(get
 
 
 @router.get("/my/{email}/", response_model=List[ChannelResponse])
-async def get_channel_users(email: str, session: AsyncSession = Depends(get_async_session)):
+async def get_my_channel(email: str, session: AsyncSession = Depends(get_async_session)):
     query = select(User).where(User.email == email)
     result = await session.execute(query)
     user_info: User = result.scalars().first()
@@ -120,7 +120,7 @@ async def append_user_channel(email: str, channel_id: int, session: AsyncSession
 
 
 @router.delete("/disconnect")
-async def delete_user(email: str, channel_id: int, session: AsyncSession = Depends(get_async_session)):
+async def delete_user_channel(email: str, channel_id: int, session: AsyncSession = Depends(get_async_session)):
     query = select(User).where(User.email == email)
     result = await session.execute(query)
     user_info: User = result.scalars().first()
@@ -230,6 +230,7 @@ async def setting_channel_edit(channel_id: int, email: str, data: SettingChannel
         response["webcam_for"] = channel_setting.webcam_for
         response["screenshare_for"] = channel_setting.screenshare_for
         response["screenrecord_for"] = channel_setting.screenrecord_for
+        response["presenter_id"] = channel_setting.presenter_id
 
     response["detail"] = "Вы не передали нужных данных" if response["detail"] == "" else response["detail"]
 

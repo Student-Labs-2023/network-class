@@ -1,7 +1,9 @@
 import json
+
 from typing import List, Dict
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+
 from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,7 +40,6 @@ manager = ConnectionManager()
 @router.websocket("/ws/{channel_id}/")
 async def websocket_endpoint_chat(websocket: WebSocket, channel_id: int, session: AsyncSession = Depends(get_async_session)):
     await manager.connect(websocket, channel_id)
-    print(manager.active_connections)
     try:
         while True:
             data = await websocket.receive_text()

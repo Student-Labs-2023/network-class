@@ -1,12 +1,15 @@
 from typing import List
+
 import aiohttp
+
 from fastapi import APIRouter, HTTPException, Depends
+
 from sqlalchemy import select, insert, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.channel.schemas import ChannelResponse, ChannelPost, ChannelDelete
 from src.models import Channels, UserChannels, Role, User, ChannelToken, ChannelSetting, UserChannelSetting
 from src.database import get_async_session
-
 from src.error_codes import ERROR_CODE_USER_NOT_AUTHORIZED, ERROR_CODE_ACCESS_FORBIDDEN, ERROR_CODE_NOT_FOUND, \
     ERROR_CODE_ON_SERVER, ERROR_CODE_CONFLICT_CREATE, ERROR_CODE_BAD_FILTER
 
@@ -17,7 +20,7 @@ router = APIRouter(
 
 
 @router.get("/", response_model=List[ChannelResponse])
-async def get_channels(page: int = 1, page_size: int = 10, session: AsyncSession = Depends(get_async_session)):
+async def get_all_channels(page: int = 1, page_size: int = 10, session: AsyncSession = Depends(get_async_session)):
     # await check_auth(token) # Validation
 
     start_index = (page - 1) * page_size
@@ -110,7 +113,6 @@ async def create_channel(data: ChannelPost, session: AsyncSession = Depends(get_
     return {"message": "Канал успешно создан"}
 
 
-
 @router.delete("/{channel_id}")
 async def delete_channel(channel_id: int, data: ChannelDelete, session: AsyncSession = Depends(get_async_session)):
     if not is_user_authorized():
@@ -171,11 +173,11 @@ async def get_info_current_channel(channel_id: int, session: AsyncSession = Depe
 
     query = select(ChannelSetting).where(ChannelSetting.id == channel_id)
     result = await session.execute(query)
-    channel_setting = result.scalars().first()
+    channel_setting: ChannelSetting = result.scalars().first()
 
     query = select(ChannelToken).where(ChannelToken.id == channel_id)
     result = await session.execute(query)
-    channel_token_info = result.scalars().first()
+    channel_token_info: ChannelToken = result.scalars().first()
 
     query = (select(User)
              .join(UserChannels, User.id == UserChannels.user_id)
@@ -191,7 +193,8 @@ async def get_info_current_channel(channel_id: int, session: AsyncSession = Depe
         "screenrecord_for": channel_setting.screenrecord_for,
         "micro_for": channel_setting.micro_for,
         "meeting_id": channel_token_info.token,
-        "owner_email": user_info.email
+        "owner_email": user_info.email,
+        "presenter_id": channel_setting.presenter_id
     }
 
 
@@ -234,8 +237,9 @@ async def update_channel_setting(channel_id: int, email: str, data: dict,
     else:
         raise HTTPException(status_code=ERROR_CODE_ACCESS_FORBIDDEN, detail="Недостаточно прав")
 
+
 @router.put("/{channel_id}")
-async def update_channel(channel_id: int, data: dict, session: AsyncSession = Depends(get_async_session)):
+async def update_channel_info(channel_id: int, data: dict, session: AsyncSession = Depends(get_async_session)):
     if not is_user_authorized():
         raise HTTPException(status_code=ERROR_CODE_USER_NOT_AUTHORIZED, detail="Пользователь не авторизован")
 
@@ -275,45 +279,49 @@ async def update_channel(channel_id: int, data: dict, session: AsyncSession = De
         return {"message": "Информация о канале обновлена"}
     else:
         raise HTTPException(status_code=ERROR_CODE_ACCESS_FORBIDDEN, detail="Недостаточно прав")
+
+
 @router.get("/{channel_id}/{user_id}")
 async def get_settings(channel_id: int, user_id: int, session: AsyncSession = Depends(get_async_session)):
-    query = select(UserChannelSetting).where(and_(UserChannelSetting.user_id == user_id, UserChannelSetting.channel_id == channel_id))
+    query = select(UserChannelSetting).where(
+        and_(UserChannelSetting.user_id == user_id, UserChannelSetting.channel_id == channel_id))
     result = await session.execute(query)
     user_setting_channel = result.scalars().first()
 
     query = select(ChannelSetting).where(ChannelSetting.id == channel_id)
     result = await session.execute(query)
-    channel_setting = result.scalars().first()
+    channel_setting: ChannelSetting = result.scalars().first()
 
     query = select(UserChannels).where(and_(UserChannels.channel_id == channel_id, UserChannels.user_id == user_id))
     result = await session.execute(query)
     user_info = result.scalars().first()
 
     if user_info.role_id == 1:
-        return{
+        return {
             "user_channel_name": user_setting_channel.name,
             "webcam_for": channel_setting.webcam_for,
             "screenshare_for": channel_setting.screenshare_for,
             "screenrecord_for": channel_setting.screenrecord_for,
-            "micro_for": channel_setting.micro_for
+            "micro_for": channel_setting.micro_for,
+            "presenter_id": channel_setting.presenter_id
         }
     else:
-        return{
+        return {
             "user_channel_name": user_setting_channel.name
         }
+
 
 @router.put("/{channel_id}/presenter")
 async def change_presenter(channel_id: int, email: str, data: dict, session: AsyncSession = Depends(get_async_session)):
     query = select(User).where(User.email == email)
     result = await session.execute(query)
-    user: User = result.scalar()
-
+    userx: User = result.scalar()
     query = select(ChannelSetting).where(ChannelSetting.id == channel_id)
     result = await session.execute(query)
     channel_setting: ChannelSetting = result.scalar()
 
     query = select(UserChannels).where(
-        and_(UserChannels.channel_id == channel_id, UserChannels.user_id == user.id))
+        and_(UserChannels.channel_id == channel_id, UserChannels.user_id == userx.user_id))
     result = await session.execute(query)
     user_info: UserChannels = result.scalar()
 
@@ -331,7 +339,3 @@ async def change_presenter(channel_id: int, email: str, data: dict, session: Asy
     else:
         raise HTTPException(status_code=ERROR_CODE_ACCESS_FORBIDDEN,
                             detail="Переключать демонстрации может только уполномоченный пользователь")
-
-
-
-
