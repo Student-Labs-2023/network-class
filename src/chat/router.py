@@ -2,11 +2,11 @@ import json
 from typing import List, Dict
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
-from sqlalchemy import select, or_, insert
+from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_async_session
-from src.models import Channels, Chat
+from src.models import Chat
 
 router = APIRouter(
     prefix="/chat",

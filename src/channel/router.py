@@ -1,17 +1,11 @@
 from typing import List
-
 import aiohttp
-
 from fastapi import APIRouter, HTTPException, Depends
-
-from sqlalchemy import select, insert, delete, and_, Column
+from sqlalchemy import select, insert, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.auth.auth import token_auth0_scheme, check_auth
 from src.channel.schemas import ChannelResponse, ChannelPost, ChannelDelete
 from src.models import Channels, UserChannels, Role, User, ChannelToken, ChannelSetting, UserChannelSetting
 from src.database import get_async_session
-from src.user_channel.schemas import SettingChannel
 
 from src.error_codes import ERROR_CODE_USER_NOT_AUTHORIZED, ERROR_CODE_ACCESS_FORBIDDEN, ERROR_CODE_NOT_FOUND, \
     ERROR_CODE_ON_SERVER, ERROR_CODE_CONFLICT_CREATE, ERROR_CODE_BAD_FILTER
@@ -312,12 +306,14 @@ async def get_settings(channel_id: int, user_id: int, session: AsyncSession = De
 async def change_presenter(channel_id: int, email: str, data: dict, session: AsyncSession = Depends(get_async_session)):
     query = select(User).where(User.email == email)
     result = await session.execute(query)
-    userx: User = result.scalar()
+    user: User = result.scalar()
+
     query = select(ChannelSetting).where(ChannelSetting.id == channel_id)
     result = await session.execute(query)
     channel_setting: ChannelSetting = result.scalar()
 
-    query = select(UserChannels).where(and_(UserChannels.channel_id == channel_id, UserChannels.user_id == userx.user_id))
+    query = select(UserChannels).where(
+        and_(UserChannels.channel_id == channel_id, UserChannels.user_id == user.id))
     result = await session.execute(query)
     user_info: UserChannels = result.scalar()
 
@@ -333,7 +329,8 @@ async def change_presenter(channel_id: int, email: str, data: dict, session: Asy
             "presenter_id": channel_setting.presenter_id
         }
     else:
-        raise HTTPException(status_code=ERROR_CODE_ACCESS_FORBIDDEN, detail="Переключать демонстрации может только уполномоченный пользователь")
+        raise HTTPException(status_code=ERROR_CODE_ACCESS_FORBIDDEN,
+                            detail="Переключать демонстрации может только уполномоченный пользователь")
 
 
 

@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy import select, insert, delete, and_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.error_codes import ERROR_CODE_NOT_FOUND, ERROR_CODE_ACCESS_FORBIDDEN
+from src.error_codes import ERROR_CODE_NOT_FOUND
 from src.user_channel.schemas import UserResponse, SettingChannel
 from src.channel.schemas import ChannelResponse
 from src.models import Channels, UserChannels, Role, User, UserChannelSetting, ChannelSetting
