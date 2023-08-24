@@ -240,7 +240,6 @@ async def update_channel_setting(channel_id: int, email: str, data: dict,
     else:
         raise HTTPException(status_code=ERROR_CODE_ACCESS_FORBIDDEN, detail="Недостаточно прав")
 
-
 @router.put("/{channel_id}")
 async def update_channel(channel_id: int, data: dict, session: AsyncSession = Depends(get_async_session)):
     if not is_user_authorized():
@@ -282,7 +281,6 @@ async def update_channel(channel_id: int, data: dict, session: AsyncSession = De
         return {"message": "Информация о канале обновлена"}
     else:
         raise HTTPException(status_code=ERROR_CODE_ACCESS_FORBIDDEN, detail="Недостаточно прав")
-
 @router.get("/{channel_id}/{user_id}")
 async def get_settings(channel_id: int, user_id: int, session: AsyncSession = Depends(get_async_session)):
     query = select(UserChannelSetting).where(and_(UserChannelSetting.user_id == user_id, UserChannelSetting.channel_id == channel_id))
@@ -309,3 +307,34 @@ async def get_settings(channel_id: int, user_id: int, session: AsyncSession = De
         return{
             "user_channel_name": user_setting_channel.name
         }
+
+@router.put("/{channel_id}/presenter")
+async def change_presenter(channel_id: int, email: str, data: dict, session: AsyncSession = Depends(get_async_session)):
+    query = select(User).where(User.email == email)
+    result = await session.execute(query)
+    userx: User = result.scalar()
+    query = select(ChannelSetting).where(ChannelSetting.id == channel_id)
+    result = await session.execute(query)
+    channel_setting: ChannelSetting = result.scalar()
+
+    query = select(UserChannels).where(and_(UserChannels.channel_id == channel_id, UserChannels.user_id == userx.user_id))
+    result = await session.execute(query)
+    user_info: UserChannels = result.scalar()
+
+    if user_info.role_id == 1:
+        if data.get("presenter_id") is not None:
+            channel_setting.presenter_id = data.get("presenter_id")
+        await session.commit()
+        return {
+            "webcam_for": channel_setting.webcam_for,
+            "screenshare_for": channel_setting.screenshare_for,
+            "screenrecord_for": channel_setting.screenrecord_for,
+            "micro_for": channel_setting.micro_for,
+            "presenter_id": channel_setting.presenter_id
+        }
+    else:
+        raise HTTPException(status_code=ERROR_CODE_ACCESS_FORBIDDEN, detail="Переключать демонстрации может только уполномоченный пользователь")
+
+
+
+
