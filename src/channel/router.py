@@ -315,13 +315,14 @@ async def get_settings(channel_id: int, user_id: int, session: AsyncSession = De
 async def change_presenter(channel_id: int, email: str, data: dict, session: AsyncSession = Depends(get_async_session)):
     query = select(User).where(User.email == email)
     result = await session.execute(query)
-    userx: User = result.scalar()
+    user: User = result.scalar()
+
     query = select(ChannelSetting).where(ChannelSetting.id == channel_id)
     result = await session.execute(query)
     channel_setting: ChannelSetting = result.scalar()
 
     query = select(UserChannels).where(
-        and_(UserChannels.channel_id == channel_id, UserChannels.user_id == userx.user_id))
+        and_(UserChannels.channel_id == channel_id, UserChannels.user_id == user.id))
     result = await session.execute(query)
     user_info: UserChannels = result.scalar()
 
