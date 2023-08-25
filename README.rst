@@ -40,16 +40,17 @@ How to launch
   .. code-block:: python
 
       pip install -r requirements.txt
-5. Создайте в корне проекта файл .env и поместите туда следующую информацию:
+5. Create a .env file in the root of the project and put the following information there:
   .. code-block:: python
 
       DB_HOST=localhost
-      DB_PORT=5432 <- Здесь вы указываете порт, который указали при установки PostgreSQL
+      DB_PORT=5432 <- Here you specify the port that you specified during installation PostgreSQL
       DB_NAME=postgres
       DB_USER=postgres
-      DB_PASS=postgres <- Здесь вместо postgres вы указываете пароль, который указали при установки PostgreSQL
+      DB_PASS=postgres <- Here, instead of postgres, you specify the password that you specified during installation PostgreSQL
 
 6. To start the project, use the following command
   .. code-block:: python
 
        gunicorn src.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind=0.0.0.0:8000
+
