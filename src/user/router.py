@@ -1,14 +1,12 @@
-from typing import List
-
 from fastapi import APIRouter, Depends, HTTPException
+
 from sqlalchemy import select, insert, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
 
 from src.database import get_async_session
 from src.error_codes import ERROR_CODE_CONFLICT_CREATE, ERROR_CODE_NOT_FOUND
 from src.models import User, UserChannelSetting, Role, UserChannels
-from src.user.schemas import UserCreate, UserResponse
+from src.user.schemas import UserCreate
 
 router = APIRouter(
     prefix="/users",
@@ -22,8 +20,7 @@ async def create_user(data: UserCreate, session: AsyncSession = Depends(get_asyn
     result = await session.execute(query)
     channel = result.first()
 
-    if channel is not None:
-
+    if channel:
         raise HTTPException(status_code=ERROR_CODE_CONFLICT_CREATE, detail="Такой пользователь уже существует")
 
     query = insert(User).values(**data.dict()).returning(User)
@@ -39,7 +36,7 @@ async def update_user(user_id: int, data: dict, session: AsyncSession = Depends(
     result = await session.execute(query)
     user = result.first()
 
-    if user is None:
+    if user:
         raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Пользователь не найден")
 
     user_info = user[0]
@@ -82,13 +79,15 @@ async def get_info_setting_user_channel(email: str, channel_id: int,
     result = await session.execute(query)
     role_info = result.scalars().first()
 
-    query = select(UserChannelSetting).where(and_(UserChannelSetting.user_id == user_info.id,
-                                                  UserChannelSetting.channel_id == channel_id))
+    query = (select(UserChannelSetting)
+             .where(and_(UserChannelSetting.user_id == user_info.id,
+                         UserChannelSetting.channel_id == channel_id))
+             )
     result = await session.execute(query)
     user_setting_info = result.scalars().first()
 
     if user_setting_info is None:
-        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Класс не найден")
+        raise HTTPException(status_code=ERROR_CODE_NOT_FOUND, detail="Настройки пользователя не найдены")
 
     return {
         **user_info.as_dict(),

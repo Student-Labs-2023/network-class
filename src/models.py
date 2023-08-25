@@ -78,6 +78,10 @@ class ChannelSetting(Base):
     screenshare_for = Column(VARCHAR())
     screenrecord_for = Column(VARCHAR())
     micro_for = Column(VARCHAR())
+    presenter_id = Column(VARCHAR())
+
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 
 class UserChannelSetting(Base):
@@ -86,3 +90,6 @@ class UserChannelSetting(Base):
     user_id = Column(BIGINT(), primary_key=True)
     channel_id = Column(BIGINT())
     name = Column(VARCHAR())
+
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
